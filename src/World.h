@@ -75,9 +75,6 @@ public:
     void removeAnt(std::shared_ptr<Ant> ant);
     bool hasAnts() const;
     int getAntCount() const;
-    
-    // Display
-    std::string getDisplayChar() const;
     std::string getDescription() const;
 };
 
@@ -90,9 +87,9 @@ private:
     std::unique_ptr<IntegerPosition> nestEntrancePosition;
     
 public:
-    const int width;
-    const int height;
-    World(int width = 500, int height = 500);
+    const unsigned int width;
+    const unsigned int height;
+    World(unsigned int width, unsigned int height);
     
     // World initialization
     void initialize();

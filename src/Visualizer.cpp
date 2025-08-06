@@ -3,9 +3,9 @@
 #include "Visualizer.h"
 
 
-Visualizer::Visualizer(int width, int height) : 
-    window(sf::VideoMode({800, 600}), "Ants") {
-    window.setFramerateLimit(60);
+Visualizer::Visualizer(unsigned int width, unsigned int height) : 
+    window(sf::VideoMode({width, height}), "Ants") {
+    window.setFramerateLimit(144);
 }
 
 void Visualizer::processEvents() {

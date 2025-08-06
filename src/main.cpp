@@ -2,15 +2,8 @@
 #include "Ant.h"
 #include "World.h"
 #include "Visualizer.h"
-#include <iostream>
 #include <vector>
-#include <memory>
-#include <thread>
-#include <chrono>
 #include <random>
-#include <cstdlib>
-#include <ctime>
-#include <iomanip>
 
 // Random number generator
 std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
@@ -32,7 +25,7 @@ const int INITIAL_COLONY_SIZE = 20;
 const int DELAY_MS = 500;           // Delay between ticks (milliseconds)
 
 int main() {
-    World world(40, 20);
+    World world(800, 600);
     world.initialize();
     Visualizer visualizer(world.getWidth(), world.getHeight());
 
@@ -73,36 +66,14 @@ int main() {
         world.addAnt(colony.back(), nestPosition);
     }
     bool running = true;
-    std::this_thread::sleep_for(std::chrono::seconds(2));
     
-    while (running) {
+    while (running && visualizer.isOpen()) {
+        visualizer.clear();
+        visualizer.processEvents();
         for (auto& ant : colony) {
+            visualizer.draw((*ant).draw());
         }
+        visualizer.display();
     }
-    
-    int alive = 0, dead = 0;
-    for (const auto& ant : colony) {
-        if (ant->isAlive()) {
-            alive++;
-        } else {
-            dead++;
-        }
-    }
-    
-    std::cout << "Colony size: " << colony.size() << " ants\n";
-    std::cout << "Alive: " << alive << " ants\n";
-    std::cout << "Dead: " << dead << " ants\n\n";
-    std::cout << "Do you want to see detailed status of all ants? (y/n): ";
-    char choice;
-    std::cin >> choice;
-    
-    if (choice == 'y' || choice == 'Y') {
-        for (const auto& ant : colony) {
-            ant->displayStatus();
-            std::cout << std::endl;
-        }
-    }
-    
-    std::cout << "\nThank you for running the Ant Colony Simulator!\n";
     return 0;
 }

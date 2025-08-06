@@ -19,7 +19,7 @@ private:
     
 public:
     // Constructor to initialize the window
-    Visualizer(int width, int height);
+    Visualizer(unsigned int width, unsigned int height);
     
     // Process window events like close button clicks
     void processEvents();

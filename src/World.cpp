@@ -105,27 +105,6 @@ int Tile::getAntCount() const {
     return antsOnTile.size();
 }
 
-std::string Tile::getDisplayChar() const {
-    if (isNestEntrance) {
-        return "N";
-    } else if (hasAnts()) {
-        return "A";
-    } else if (hasFood) {
-        return "F";
-    } else if (hasPheromone) {
-        return ".";
-    } else {
-        switch (terrain) {
-            case TerrainType::SOIL: return "#";
-            case TerrainType::SAND: return "~";
-            case TerrainType::ROCK: return "^";
-            case TerrainType::WATER: return "W";
-            case TerrainType::GRASS: return ",";
-            default: return " ";
-        }
-    }
-}
-
 std::string Tile::getDescription() const {
     std::string desc = "Tile at " + position.toString() + " - ";
     
@@ -160,14 +139,14 @@ std::string Tile::getDescription() const {
 }
 
 // World implementation
-World::World(int width, int height) : width(width), height(height) {
+World::World(unsigned int width, unsigned int height) : width(width), height(height) {
     initialize();
 }
 
 void World::initialize() {
     // Create all tiles
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
+    for (unsigned int x = 0; x < width; x++) {
+        for (unsigned int y = 0; y < height; y++) {
             IntegerPosition pos(x, y);
             tiles[pos] = std::make_unique<Tile>(pos, TerrainType::SOIL);
         }
@@ -344,34 +323,4 @@ void World::forEachTile(std::function<void(Tile*)> callback) {
             callback(getTile(pos));
         }
     }
-}
-
-void World::display() const {
-    // Display the world grid
-    std::cout << "World Map (" << width << "x" << height << ")" << std::endl;
-    std::cout << std::string(width + 2, '-') << std::endl;
-    
-    for (int y = 0; y < height; y++) {
-        std::cout << "|";
-        for (int x = 0; x < width; x++) {
-            IntegerPosition pos(x, y);
-            std::cout << tiles.at(pos)->getDisplayChar();
-        }
-        std::cout << "|" << std::endl;
-    }
-    
-    std::cout << std::string(width + 2, '-') << std::endl;
-    
-    // Display legend
-    std::cout << "Legend:" << std::endl;
-    std::cout << "N = Nest Entrance" << std::endl;
-    std::cout << "A = Ant" << std::endl;
-    std::cout << "F = Food" << std::endl;
-    std::cout << ". = Pheromone Trail" << std::endl;
-    std::cout << "# = Soil" << std::endl;
-    std::cout << "~ = Sand" << std::endl;
-    std::cout << "^ = Rock" << std::endl;
-    std::cout << "W = Water" << std::endl;
-    std::cout << ", = Grass" << std::endl;
-    std::cout << "L = Leaf" << std::endl;
 }

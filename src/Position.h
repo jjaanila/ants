@@ -45,19 +45,19 @@ public:
  */
 class IntegerPosition : public Position {
 private:
-    int x;
-    int y;
+    unsigned int x;
+    unsigned int y;
 
 public:
-    IntegerPosition(int x = 0, int y = 0) : x(x), y(y) {}
+    IntegerPosition(unsigned int x = 0, unsigned int y = 0) : x(x), y(y) {}
     
     // Implementation of the Position interface
     float getX() const override { return static_cast<float>(x); }
     float getY() const override { return static_cast<float>(y); }
     
     // Integer-specific getters
-    int getIntX() const { return x; }
-    int getIntY() const { return y; }
+    unsigned int getIntX() const { return x; }
+    unsigned int getIntY() const { return y; }
     
     // Distance methods using the base class implementation
     float distanceTo(const IntegerPosition& other) const {
