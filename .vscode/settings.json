@@ -47,7 +47,11 @@
         "iomanip": "cpp",
         "random": "cpp",
         "chrono": "cpp",
-        "__node_handle": "cpp"
+        "__node_handle": "cpp",
+        "__hash_table": "cpp",
+        "__tree": "cpp",
+        "list": "cpp",
+        "map": "cpp"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/g++"
 }

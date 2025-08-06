@@ -10,11 +10,8 @@
 #include <string>
 #include <SFML/Graphics.hpp>
 
-Ant::Ant(AntRole role, float size, const std::string& color)
+Ant::Ant(AntRole role)
     : role(role),
-      sizeInMm(size), 
-      color(color),
-      weight(size * 0.5), // approximate weight based on size
       hasWings(role == AntRole::QUEEN || role == AntRole::DRONE),
       age(0),
       colony(""),
@@ -32,45 +29,60 @@ Ant::Ant(AntRole role, float size, const std::string& color)
 }
 
 void Ant::initializeRoleAttributes() {
+    weight = size / 2.0;
     switch (role) {
         case AntRole::QUEEN:
-            sizeInMm *= 2.0;  // Queens are larger
-            weight *= 3.0;
+            color = sf::Color::Yellow;
+            size = 10.0;  // Queens are larger
             lifespan = 365 * 15;  // Queens can live for years
             eggLayingRate = 1000; // Eggs per day
             hasWings = true;      // Queens start with wings but lose them
+            movementSpeed = 5.0;
             movementStrategy = std::make_unique<QueenMovementStrategy>();
             break;
             
         case AntRole::WORKER:
+            color = sf::Color::Black;
+            size = 5.0;
             lifespan = 365;  // ~1 year
-            carryCapacity = sizeInMm * 2.0;
+            carryCapacity = size * 2.0;
+            movementSpeed = 10.0;
             movementStrategy = std::make_unique<WorkerMovementStrategy>();
             break;
             
         case AntRole::SOLDIER:
-            sizeInMm *= 1.5;  // Soldiers are larger than workers
-            weight *= 1.8;
+            color = sf::Color::Red;
+            size = 7.5;  // Soldiers are larger than workers
             lifespan = 365;
-            attackPower = sizeInMm * 3.0;
+            attackPower = size * 3.0;
+            movementSpeed = 15.0;
             movementStrategy = std::make_unique<SoldierMovementStrategy>();
             break;
             
         case AntRole::DRONE:
+            color = sf::Color::Cyan;
+            size = 5.0;
             lifespan = 90;  // Shorter lifespan
             hasWings = true;
+            movementSpeed = 5.0;
             movementStrategy = std::make_unique<DroneMovementStrategy>();
             break;
             
         case AntRole::FORAGER:
+            color = sf::Color::Blue;
+            size = 5.0;
             lifespan = 180;
-            carryCapacity = sizeInMm * 1.5;
+            carryCapacity = size * 1.5;
+            movementSpeed = 5.0;
             movementStrategy = std::make_unique<ForagerMovementStrategy>();
             break;
             
         case AntRole::NURSE:
+            color = sf::Color::Green;
+            size = 5.0;
             lifespan = 365;
             nursingEfficiency = 10.0;
+            movementSpeed = 5.0;
             movementStrategy = std::make_unique<NurseMovementStrategy>();
             break;
     }
@@ -85,6 +97,10 @@ AntRole Ant::getRole() const { return role; }
 void Ant::setRole(AntRole newRole) { 
     role = newRole;
     updateAttributesBasedOnRole();
+}
+
+FloatPosition Ant::getPreviousPosition() const {
+    return *previousPosition;
 }
 
 void Ant::updateAttributesBasedOnRole() {
@@ -112,11 +128,11 @@ std::string Ant::getRoleName() const {
 }
 
 // Getters and setters implementations
-float Ant::getSize() const { return sizeInMm; }
-void Ant::setSize(float sizeInMm) { this->sizeInMm = sizeInMm; }
+float Ant::getSize() const { return size; }
+void Ant::setSize(float size) { this->size = size; }
 
-std::string Ant::getColor() const { return color; }
-void Ant::setColor(const std::string& color) { this->color = color; }
+sf::Color Ant::getColor() const { return color; }
+void Ant::setColor(const sf::Color& color) { this->color = color; }
 
 bool Ant::getHasWings() const { return hasWings; }
 void Ant::setHasWings(bool hasWings) { this->hasWings = hasWings; }
@@ -138,7 +154,8 @@ void Ant::update(World& world) {
 void Ant::move(const Vector2D& direction, World& world) {
     FloatPosition newPosition = *position + direction * movementSpeed;
     if (world.isValidPosition(newPosition.getX(), newPosition.getY())) {
-        position = std::make_unique<FloatPosition>(newPosition);
+        previousPosition = std::make_unique<FloatPosition>(*position);
+        position = std::make_unique<FloatPosition>(newPosition); 
     } else {
         // Hit obstacle, increase randomness for next move
         wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
@@ -262,10 +279,6 @@ void Ant::mate() {
     }
 }
 
-void Ant::wander() {
-    std::cout << getName() << " is wandering around." << std::endl;
-}
-
 void Ant::eatFood(const std::string& foodType, float amount) {
     std::cout << getName() << " is eating " << amount << "mg of " << foodType << std::endl;
     bool preferred = false;
@@ -307,8 +320,8 @@ void Ant::setPosition(FloatPosition newPosition) {
 void Ant::displayStatus() const {
     std::cout << "=== Ant Status ===" << std::endl;
     std::cout << "Role: " << getRoleName() << std::endl;
-    std::cout << "Size: " << sizeInMm << " mm" << std::endl;
-    std::cout << "Color: " << color << std::endl;
+    std::cout << "Size: " << size << " mm" << std::endl;
+    std::cout << "Color: " << color.r << color.b << color.g << color.a << std::endl;
     std::cout << "Has wings: " << (hasWings ? "Yes" : "No") << std::endl;
     std::cout << "Age: " << age << " days" << std::endl;
     std::cout << "Lifespan: " << lifespan << " days" << std::endl;
@@ -334,28 +347,4 @@ void Ant::displayStatus() const {
         default:
             break;
     }
-}
-
-sf::RectangleShape Ant::draw() const {
-    sf::RectangleShape antShape;
-    antShape.setSize(sf::Vector2f(sizeInMm, sizeInMm));
-    const auto position = getPosition();
-    antShape.setPosition({position.getX(), position.getY()});
-    switch(role) {
-        case AntRole::QUEEN:
-            antShape.setFillColor(sf::Color::Red);
-            break;
-        case AntRole::NURSE:
-            antShape.setFillColor(sf::Color::Magenta);
-            break;
-        case AntRole::FORAGER:
-            antShape.setFillColor(sf::Color::Blue);
-            break;
-        case AntRole::SOLDIER:
-            antShape.setFillColor(sf::Color::Yellow);
-            break;
-        default:
-            antShape.setFillColor(sf::Color::Black);
-    }
-    return antShape;
 }

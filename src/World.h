@@ -46,7 +46,7 @@ private:
     std::string pheromoneMessage;
     int pheromoneStrength;
     bool isNestEntrance;
-    std::vector<std::shared_ptr<Ant>> antsOnTile;
+    std::vector<std::shared_ptr<Ant>> ants;
     
 public:
     Tile(IntegerPosition pos, TerrainType terrain = TerrainType::SOIL);
@@ -84,15 +84,18 @@ public:
 class World {
 private:
     std::unordered_map<IntegerPosition, std::unique_ptr<Tile>> tiles;
+    std::vector<std::shared_ptr<Ant>> ants;
     std::unique_ptr<IntegerPosition> nestEntrancePosition;
+
+    void updateAnts();
     
 public:
     const unsigned int width;
     const unsigned int height;
-    World(unsigned int width, unsigned int height);
+    World(unsigned int width, unsigned int height, unsigned int initial_colony_size);
     
     // World initialization
-    void initialize();
+    void initialize(unsigned int initial_colony_size);
     void generateTerrain();
     void placeNest(const IntegerPosition& pos);
     void placeFood(const IntegerPosition& pos, float amount);
@@ -111,6 +114,7 @@ public:
     void addPheromone(const IntegerPosition& pos, const std::string& message, int strength = 10);
     void updatePheromones();
     void spawnFood(int count, float amountPerSpawn);
+    void update();
     
     // Ant management
     void addAnt(std::shared_ptr<Ant> ant, const IntegerPosition& pos);
@@ -119,6 +123,7 @@ public:
     // World properties
     int getWidth() const;
     int getHeight() const;
+    const std::vector<std::shared_ptr<Ant>>& getAnts() const;
     
     // Iteration over tiles
     void forEachTile(std::function<void(Tile*)> callback);

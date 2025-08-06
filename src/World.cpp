@@ -1,8 +1,9 @@
-#include "World.h"
 #include <iostream>
 #include <random>
 #include <queue>
 #include <unordered_set>
+#include "rng.h"
+#include "World.h"
 
 // Tile implementation
 Tile::Tile(IntegerPosition pos, TerrainType terrain) 
@@ -48,7 +49,7 @@ bool Tile::getIsNestEntrance() const {
 }
 
 const std::vector<std::shared_ptr<Ant>>& Tile::getAnts() const {
-    return antsOnTile;
+    return ants;
 }
 
 void Tile::setTerrain(TerrainType newTerrain) {
@@ -87,22 +88,22 @@ void Tile::setNestEntrance(bool isEntrance) {
 }
 
 void Tile::addAnt(std::shared_ptr<Ant> ant) {
-    antsOnTile.push_back(ant);
+    ants.push_back(ant);
 }
 
 void Tile::removeAnt(std::shared_ptr<Ant> ant) {
-    auto it = std::find(antsOnTile.begin(), antsOnTile.end(), ant);
-    if (it != antsOnTile.end()) {
-        antsOnTile.erase(it);
+    auto it = std::find(ants.begin(), ants.end(), ant);
+    if (it != ants.end()) {
+        ants.erase(it);
     }
 }
 
 bool Tile::hasAnts() const {
-    return !antsOnTile.empty();
+    return !ants.empty();
 }
 
 int Tile::getAntCount() const {
-    return antsOnTile.size();
+    return ants.size();
 }
 
 std::string Tile::getDescription() const {
@@ -132,18 +133,21 @@ std::string Tile::getDescription() const {
     }
     
     if (hasAnts()) {
-        desc += ", Ants: " + std::to_string(antsOnTile.size());
+        desc += ", Ants: " + std::to_string(ants.size());
     }
     
     return desc;
 }
 
 // World implementation
-World::World(unsigned int width, unsigned int height) : width(width), height(height) {
-    initialize();
+World::World(unsigned int width, unsigned int height, const unsigned int initial_colony_size)
+    :
+    width(width),
+    height(height) {
+    initialize(initial_colony_size);
 }
 
-void World::initialize() {
+void World::initialize(const unsigned int initial_colony_size) {
     // Create all tiles
     for (unsigned int x = 0; x < width; x++) {
         for (unsigned int y = 0; y < height; y++) {
@@ -157,6 +161,26 @@ void World::initialize() {
     
     // Place nest at the center by default
     placeNest(IntegerPosition(width / 2, height / 2));
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    const IntegerPosition nestPosition = getNestEntrancePosition();
+    addAnt(std::make_shared<Ant>(AntRole::QUEEN), nestPosition);
+    for (int i = 1; i < initial_colony_size; ++i) {
+        int roleRandom = getRandomInt(1, 100);
+        AntRole role;
+        
+        if (roleRandom <= 45) {
+            role = AntRole::WORKER;
+        } else if (roleRandom <= 70) {
+            role = AntRole::FORAGER;
+        } else if (roleRandom <= 85) {
+            role = AntRole::SOLDIER;
+        } else if (roleRandom <= 95) {
+            role = AntRole::NURSE;
+        } else {
+            role = AntRole::DRONE;
+        }
+        addAnt(std::make_shared<Ant>(role), nestPosition);
+    }
     spawnFood(50, 5.0);
 }
 
@@ -245,6 +269,10 @@ Tile* World::getTile(int x, int y) {
     return getTile(IntegerPosition(x, y));
 }
 
+const std::vector<std::shared_ptr<Ant>>& World::getAnts() const {
+    return ants;
+}
+
 bool World::isValidPosition(const IntegerPosition& pos) const {
     return pos.getX() >= 0 && pos.getX() < width && pos.getY() >= 0 && pos.getY() < height;
 }
@@ -285,6 +313,16 @@ void World::updatePheromones() {
     });
 }
 
+void World::updateAnts() {
+    for (auto& ant : ants) {
+        (*ant).update(*this);
+    }
+}
+
+void World::update() {
+    updateAnts();
+}
+
 void World::spawnFood(int count, float amountPerSpawn) {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -311,6 +349,7 @@ void World::spawnFood(int count, float amountPerSpawn) {
 
 void World::addAnt(std::shared_ptr<Ant> ant, const IntegerPosition& pos) {
     if (isValidPosition(pos)) {
+        ants.push_back(ant);
         getTile(pos)->addAnt(ant);
         (*ant).setPosition(FloatPosition(pos));
     }

@@ -18,9 +18,10 @@ add_executable(
     ./src/main.cpp 
     ./src/Ant.cpp 
     ./src/Id.cpp 
-    ./src/World.cpp 
     ./src/MovementStrategy.cpp
+    ./src/Timer.cpp
     ./src/Visualizer.cpp
+    ./src/World.cpp
 )
 target_compile_features(ants PRIVATE cxx_std_23)
 target_link_libraries(ants PRIVATE SFML::Graphics)

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <SFML/Graphics.hpp>
+#include "Ant.h"
 
 // Forward declarations if needed
 class World;
@@ -31,13 +32,17 @@ public:
     void drawNest(float x, float y, float radius);
     
     // Draw an ant with position and role
-    void draw(sf::RectangleShape shape);
+    void drawAnt(Ant& ant);
     
     // Draw food at a position with an amount (affects color intensity)
     void drawFood(float x, float y, float amount);
+
+    void drawWorldInterpolated(const World& world, float interpolation);
     
     // Finish drawing and display the frame
     void display();
+
+    void displayStats(float fps, int simStepsLastFrame);
     
     // Check if the window is still open
     bool isOpen() const;

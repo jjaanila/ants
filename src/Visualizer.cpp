@@ -1,6 +1,8 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include "Position.h"
 #include "Visualizer.h"
+#include "World.h"
 
 
 Visualizer::Visualizer(unsigned int width, unsigned int height) : 
@@ -28,8 +30,28 @@ void Visualizer::drawNest(float x, float y, float radius) {
     window.draw(nestShape);
 }
 
-void Visualizer::draw(sf::RectangleShape shape) {
-    window.draw(shape);
+void Visualizer::drawAnt(Ant& ant) {
+    sf::RectangleShape antShape;
+    antShape.setSize(sf::Vector2f(ant.getSize(), ant.getSize()));
+    const auto position = ant.getPosition();
+    antShape.setPosition({position.getX(), position.getY()});
+    switch(ant.getRole()) {
+        case AntRole::QUEEN:
+            antShape.setFillColor(sf::Color::Red);
+            break;
+        case AntRole::NURSE:
+            antShape.setFillColor(sf::Color::Magenta);
+            break;
+        case AntRole::FORAGER:
+            antShape.setFillColor(sf::Color::Blue);
+            break;
+        case AntRole::SOLDIER:
+            antShape.setFillColor(sf::Color::Yellow);
+            break;
+        default:
+            antShape.setFillColor(sf::Color::Black);
+    }
+    window.draw(antShape);
 }
 
 void Visualizer::drawFood(float x, float y, float amount) {
@@ -45,8 +67,38 @@ void Visualizer::drawFood(float x, float y, float amount) {
     window.draw(foodShape);
 }
 
+void Visualizer::drawWorldInterpolated(const World& world, float interpolation) {
+    // Draw entities with interpolation between their current and previous positions
+    for (const auto& ant : world.getAnts()) {
+        FloatPosition currentPos = (*ant).getPosition();
+        FloatPosition prevPos = (*ant).getPreviousPosition();
+        
+        // Interpolate between previous and current position
+        float x = prevPos.getX() + (currentPos.getX() - prevPos.getX()) * interpolation;
+        float y = prevPos.getY() + (currentPos.getY() - prevPos.getY()) * interpolation;
+        
+        drawAnt(*ant);
+    }
+    
+    // Draw other world elements
+    // ...
+}
+
 void Visualizer::display() {
     window.display();
+}
+
+void Visualizer::displayStats(float fps, int simStepsLastFrame) {
+    sf::Font font("resources/Arial Unicode.ttf");
+    sf::Text fpsText(font);
+    fpsText.setCharacterSize(12);
+    fpsText.setFillColor(sf::Color::White);
+    
+    std::string statsStr = "FPS: " + std::to_string(static_cast<int>(fps)) + 
+                          " | Sim Steps: " + std::to_string(simStepsLastFrame);
+    fpsText.setString(statsStr);
+    
+    window.draw(fpsText);
 }
 
 bool Visualizer::isOpen() const {
