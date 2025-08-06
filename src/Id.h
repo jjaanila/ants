@@ -1,5 +1,4 @@
-#ifndef ID_H
-#define ID_H
+#pragma once
 
 /**
  * @brief A simple utility class for generating unique sequential IDs
@@ -18,5 +17,3 @@ public:
      */
     static int getNextId();
 };
-
-#endif // ID_H

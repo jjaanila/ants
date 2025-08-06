@@ -1,12 +1,16 @@
 // Ant.cpp
 #include "Ant.h"
 #include "Id.h"
+#include "MovementStrategy.h"
+#include "Position.h"
+#include "World.h"
 #include <iostream>
 #include <cmath>
 #include <random>
 #include <string>
+#include <SFML/Graphics.hpp>
 
-Ant::Ant(AntRole role, double size, const std::string& color)
+Ant::Ant(AntRole role, float size, const std::string& color)
     : role(role),
       sizeInMm(size), 
       color(color),
@@ -15,11 +19,12 @@ Ant::Ant(AntRole role, double size, const std::string& color)
       age(0),
       colony(""),
       energy(100.0),
-      position(0.0, 0.0),
+      movementSpeed(0.0),
       eggLayingRate(0),
       attackPower(0.0),
       carryCapacity(0.0),
-      nursingEfficiency(0.0)
+      nursingEfficiency(0.0),
+      lastDirection(0.0f, 0.0f)
 {
     id = UniqueIdGenerator::getNextId();
     foodPreferences = {"sugar", "protein", "seeds"};
@@ -34,11 +39,13 @@ void Ant::initializeRoleAttributes() {
             lifespan = 365 * 15;  // Queens can live for years
             eggLayingRate = 1000; // Eggs per day
             hasWings = true;      // Queens start with wings but lose them
+            movementStrategy = std::make_unique<QueenMovementStrategy>();
             break;
             
         case AntRole::WORKER:
             lifespan = 365;  // ~1 year
             carryCapacity = sizeInMm * 2.0;
+            movementStrategy = std::make_unique<WorkerMovementStrategy>();
             break;
             
         case AntRole::SOLDIER:
@@ -46,21 +53,25 @@ void Ant::initializeRoleAttributes() {
             weight *= 1.8;
             lifespan = 365;
             attackPower = sizeInMm * 3.0;
+            movementStrategy = std::make_unique<SoldierMovementStrategy>();
             break;
             
         case AntRole::DRONE:
             lifespan = 90;  // Shorter lifespan
             hasWings = true;
+            movementStrategy = std::make_unique<DroneMovementStrategy>();
             break;
             
         case AntRole::FORAGER:
             lifespan = 180;
             carryCapacity = sizeInMm * 1.5;
+            movementStrategy = std::make_unique<ForagerMovementStrategy>();
             break;
             
         case AntRole::NURSE:
             lifespan = 365;
             nursingEfficiency = 10.0;
+            movementStrategy = std::make_unique<NurseMovementStrategy>();
             break;
     }
 }
@@ -101,8 +112,8 @@ std::string Ant::getRoleName() const {
 }
 
 // Getters and setters implementations
-double Ant::getSize() const { return sizeInMm; }
-void Ant::setSize(double sizeInMm) { this->sizeInMm = sizeInMm; }
+float Ant::getSize() const { return sizeInMm; }
+void Ant::setSize(float sizeInMm) { this->sizeInMm = sizeInMm; }
 
 std::string Ant::getColor() const { return color; }
 void Ant::setColor(const std::string& color) { this->color = color; }
@@ -113,10 +124,27 @@ void Ant::setHasWings(bool hasWings) { this->hasWings = hasWings; }
 std::string Ant::getColony() const { return colony; }
 void Ant::setColony(const std::string& colony) { this->colony = colony; }
 
+float Ant::getWanderRandomness() const { return wanderRandomness; }
+Vector2D Ant::getLastDirection() const { return lastDirection; }
+
+void Ant::update(World& world) {
+    Vector2D moveDirection = movementStrategy->getMovementDirection(*this, world);
+    move(moveDirection, world);
+    
+    lastDirection = moveDirection;
+}
+
 // Behavior methods implementations
-void Ant::move(double x, double y) {
-    double distance = std::sqrt(std::pow(x - position.first, 2) + std::pow(y - position.second, 2));
-    double energyConsumption = distance * 0.1;
+void Ant::move(const Vector2D& direction, World& world) {
+    FloatPosition newPosition = *position + direction * movementSpeed;
+    if (world.isValidPosition(newPosition.getX(), newPosition.getY())) {
+        position = std::make_unique<FloatPosition>(newPosition);
+    } else {
+        // Hit obstacle, increase randomness for next move
+        wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
+    }
+    float distance = direction.magnitude();
+    float energyConsumption = distance * 0.1;
     if (role == AntRole::QUEEN) {
         energyConsumption *= 2.0;
     } else if (role == AntRole::SOLDIER) {
@@ -128,10 +156,7 @@ void Ant::move(double x, double y) {
     energy -= energyConsumption;
     if (energy < 0) energy = 0;
     
-    position.first = x;
-    position.second = y;
-    
-    std::cout << getName() << " moved to position (" << x << ", " << y << ")" << std::endl;
+    std::cout << getName() << " moved to position (" << newPosition.getX() << ", " << newPosition.getY() << ")" << std::endl;
 }
 
 void Ant::forage() {
@@ -152,13 +177,6 @@ void Ant::forage() {
     }
 }
 
-void Ant::returnToNest() {
-    std::cout << getName() << " is returning to the nest..." << std::endl;
-    position = {0.0, 0.0}; // Assuming nest is at origin
-    energy -= 2.0;
-    if (energy < 0) energy = 0;
-}
-
 void Ant::communicateWithPheromones(const std::string& message) {
     std::cout << getName() << " is leaving a pheromone trail: " << message << std::endl;
     energy -= 1.0;
@@ -167,7 +185,7 @@ void Ant::communicateWithPheromones(const std::string& message) {
 
 void Ant::rest(int minutes) {
     std::cout << getName() << " is resting for " << minutes << " minutes." << std::endl;
-    double recoveryRate = (role == AntRole::QUEEN) ? 1.0 : 0.5;
+    float recoveryRate = (role == AntRole::QUEEN) ? 1.0 : 0.5;
     
     energy += minutes * recoveryRate;
     if (energy > 100.0) energy = 100.0;
@@ -195,7 +213,7 @@ void Ant::buildNest() {
         return;
     }
     
-    std::cout << "Worker ant is contributing to nest building." << std::endl;
+    std::cout << getName() << " is contributing to nest building." << std::endl;
     energy -= 8.0;
     if (energy < 0) energy = 0;
 }
@@ -222,7 +240,7 @@ void Ant::nurseYoung() {
         return;
     }
     
-    double efficiency = (role == AntRole::NURSE) ? nursingEfficiency : nursingEfficiency / 2;
+    float efficiency = (role == AntRole::NURSE) ? nursingEfficiency : nursingEfficiency / 2;
     std::cout << getName() << " is nursing young with efficiency " 
               << efficiency << "." << std::endl;
     energy -= 5.0;
@@ -244,7 +262,11 @@ void Ant::mate() {
     }
 }
 
-void Ant::eatFood(const std::string& foodType, double amount) {
+void Ant::wander() {
+    std::cout << getName() << " is wandering around." << std::endl;
+}
+
+void Ant::eatFood(const std::string& foodType, float amount) {
     std::cout << getName() << " is eating " << amount << "mg of " << foodType << std::endl;
     bool preferred = false;
     for (const auto& food : foodPreferences) {
@@ -270,12 +292,16 @@ bool Ant::isAlive() const {
     return energy > 0;
 }
 
-double Ant::getEnergyLevel() const {
+float Ant::getEnergyLevel() const {
     return energy;
 }
 
-std::pair<double, double> Ant::getPosition() const {
-    return position;
+FloatPosition Ant::getPosition() const {
+    return *position;
+}
+
+void Ant::setPosition(FloatPosition newPosition) {
+    position = std::make_unique<FloatPosition>(newPosition);
 }
 
 void Ant::displayStatus() const {
@@ -287,7 +313,8 @@ void Ant::displayStatus() const {
     std::cout << "Age: " << age << " days" << std::endl;
     std::cout << "Lifespan: " << lifespan << " days" << std::endl;
     std::cout << "Colony: " << (colony.empty() ? "None" : colony) << std::endl;
-    std::cout << "Position: (" << position.first << ", " << position.second << ")" << std::endl;
+    const auto position = getPosition();
+    std::cout << "Position: (" << position.getX() << ", " << position.getY() << ")" << std::endl;
     std::cout << "Energy level: " << energy << "%" << std::endl;
     std::cout << "Status: " << (isAlive() ? "Alive" : "Dead") << std::endl;
     switch (role) {
@@ -307,4 +334,28 @@ void Ant::displayStatus() const {
         default:
             break;
     }
+}
+
+sf::RectangleShape Ant::draw() const {
+    sf::RectangleShape antShape;
+    antShape.setSize(sf::Vector2f(sizeInMm, sizeInMm));
+    const auto position = getPosition();
+    antShape.setPosition({position.getX(), position.getY()});
+    switch(role) {
+        case AntRole::QUEEN:
+            antShape.setFillColor(sf::Color::Red);
+            break;
+        case AntRole::NURSE:
+            antShape.setFillColor(sf::Color::Magenta);
+            break;
+        case AntRole::FORAGER:
+            antShape.setFillColor(sf::Color::Blue);
+            break;
+        case AntRole::SOLDIER:
+            antShape.setFillColor(sf::Color::Yellow);
+            break;
+        default:
+            antShape.setFillColor(sf::Color::Black);
+    }
+    return antShape;
 }

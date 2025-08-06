@@ -1,10 +1,16 @@
 // Ant.h
-#ifndef ANT_H
-#define ANT_H
+#pragma once
 
 #include <string>
 #include <vector>
 #include <memory>
+
+#include "SFML/Graphics.hpp"
+#include "Position.h"
+
+// Forward declarations
+class MovementStrategy;
+class World;
 
 // Define ant roles as an enum
 enum class AntRole {
@@ -20,58 +26,52 @@ class Ant {
 private:
     int id;
     AntRole role;
-    double sizeInMm;
+    float sizeInMm;
     std::string color;
-    double weight; // in milligrams
+    float weight; // in milligrams
     bool hasWings;
     int age; // in days
     std::string colony;
     std::vector<std::string> foodPreferences;
     int lifespan; // in days, varies by role
-    
-    // Current status
-    double energy; // 0.0 to 100.0
-    std::pair<double, double> position; // x, y coordinates
-    
-    // Role-specific attributes
+    float energy; // 0.0 to 100.0
+    std::unique_ptr<FloatPosition> position;
+    float movementSpeed;
+    std::unique_ptr<MovementStrategy> movementStrategy;
     int eggLayingRate;  // For queens, eggs per day
-    double attackPower; // For soldiers
-    double carryCapacity; // For workers and foragers
-    double nursingEfficiency; // For nurses
+    float attackPower; // For soldiers
+    float carryCapacity; // For workers and foragers
+    float nursingEfficiency; // For nurses
+    Vector2D lastDirection;
+    float wanderRandomness{0.8f};
 
 public:
-    // Constructor
     Ant(AntRole role = AntRole::WORKER,
-        double size = 5.0, 
+        float size = 5.0, 
         const std::string& color = "black");
-    
-    // Destructor
     ~Ant();
-    
-    // Basic getters and setters
     AntRole getRole() const;
     void setRole(AntRole role);
     std::string getName() const;
     std::string getRoleName() const; // Returns role as string
-    
-    double getSize() const;
-    void setSize(double sizeInMm);
-    
+    float getSize() const;
+    void setSize(float sizeInMm);
     std::string getColor() const;
     void setColor(const std::string& color);
-    
     bool getHasWings() const;
     void setHasWings(bool hasWings);
-    
     std::string getColony() const;
     void setColony(const std::string& colony);
-    
-    // General behavior methods
-    void move(double x, double y);
+    float getEnergyLevel() const;
+    FloatPosition getPosition() const;
+    void setPosition(FloatPosition newPosition);
+    Vector2D getLastDirection() const;
+    float getWanderRandomness() const;
+
+    void update(World& world);
+    void move(const Vector2D& direction, World& world);
     void rest(int minutes);
-    void eatFood(const std::string& foodType, double amount);
-    
-    // Role-specific behavior methods
+    void eatFood(const std::string& foodType, float amount);
     void forage();  // Primarily for foragers
     void returnToNest();
     void communicateWithPheromones(const std::string& message);
@@ -80,17 +80,12 @@ public:
     void layEggs(int count);  // Only for queens
     void nurseYoung();  // Only for nurses
     void mate();  // Only for queens and drones
-    
-    // Status methods
+    void wander();
     bool isAlive() const;
-    double getEnergyLevel() const;
-    std::pair<double, double> getPosition() const;
     void displayStatus() const;
+    sf::RectangleShape draw() const;
     
 private:
-    // Helper methods
     void initializeRoleAttributes();
     void updateAttributesBasedOnRole();
 };
-
-#endif // ANT_H

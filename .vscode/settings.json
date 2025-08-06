@@ -39,6 +39,15 @@
         "variant": "cpp",
         "vector": "cpp",
         "memory": "cpp",
-        "algorithm": "cpp"
-    }
+        "algorithm": "cpp",
+        "unordered_set": "cpp",
+        "functional": "cpp",
+        "__split_buffer": "cpp",
+        "unordered_map": "cpp",
+        "iomanip": "cpp",
+        "random": "cpp",
+        "chrono": "cpp",
+        "__node_handle": "cpp"
+    },
+    "C_Cpp.default.compilerPath": "/usr/bin/g++"
 }
