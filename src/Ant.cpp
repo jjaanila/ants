@@ -172,8 +172,6 @@ void Ant::move(const Vector2D& direction, World& world) {
     
     energy -= energyConsumption;
     if (energy < 0) energy = 0;
-    
-    std::cout << getName() << " moved to position (" << newPosition.getX() << ", " << newPosition.getY() << ")" << std::endl;
 }
 
 void Ant::forage() {

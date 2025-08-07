@@ -17,6 +17,7 @@ private:
     TimePoint lastSimulationUpdate;  // Time of last simulation update
     TimePoint lastFrameTime;         // Time of last frame render
     float simulationStepSize;        // Fixed timestep size in seconds
+    float accumulatedTime = 0.0f;
     
 public:
     /**
@@ -39,4 +40,7 @@ public:
      * @return int Number of simulation steps to run (capped at 5)
      */
     int getSimulationStepsToRun();
+
+    float getAccumulatedTime() const;
+    float getSimulationStepSize() const;
 };

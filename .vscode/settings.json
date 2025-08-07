@@ -51,7 +51,13 @@
         "__hash_table": "cpp",
         "__tree": "cpp",
         "list": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "charconv": "cpp",
+        "complex": "cpp",
+        "execution": "cpp",
+        "forward_list": "cpp",
+        "fstream": "cpp",
+        "sstream": "cpp"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/g++"
 }

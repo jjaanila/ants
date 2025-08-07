@@ -6,10 +6,13 @@
 
 // Simulation parameters
 const int INITIAL_COLONY_SIZE = 10;
+const unsigned int WORLD_WIDTH = 800;
+const unsigned int WORLD_HEIGHT = 600;
+const float SIMULATION_STEPS_PER_SECOND = 0.2;
 
 int main() {
-    Timer timer(5.0);
-    World world(800, 600, INITIAL_COLONY_SIZE);
+    Timer timer(SIMULATION_STEPS_PER_SECOND);
+    World world(WORLD_WIDTH, WORLD_HEIGHT, INITIAL_COLONY_SIZE);
     world.initialize(INITIAL_COLONY_SIZE);
     Visualizer visualizer(world.getWidth(), world.getHeight());
     bool running = true;
@@ -25,7 +28,9 @@ int main() {
         for (int i = 0; i < stepsToRun; i++) {
             world.update();
         }
-        visualizer.drawWorldInterpolated(world, 1.10);
+        float accumulatedTime = timer.getAccumulatedTime();
+        float interpolation = accumulatedTime / timer.getSimulationStepSize();
+        visualizer.drawWorld(world, interpolation);
         // Display simulation stats
         float fps = 1.0f / frameTime;
         visualizer.displayStats(fps, stepsToRun);

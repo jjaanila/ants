@@ -30,27 +30,17 @@ void Visualizer::drawNest(float x, float y, float radius) {
     window.draw(nestShape);
 }
 
-void Visualizer::drawAnt(Ant& ant) {
+void Visualizer::drawAnt(Ant& ant, float interpolation) {
     sf::RectangleShape antShape;
     antShape.setSize(sf::Vector2f(ant.getSize(), ant.getSize()));
-    const auto position = ant.getPosition();
-    antShape.setPosition({position.getX(), position.getY()});
-    switch(ant.getRole()) {
-        case AntRole::QUEEN:
-            antShape.setFillColor(sf::Color::Red);
-            break;
-        case AntRole::NURSE:
-            antShape.setFillColor(sf::Color::Magenta);
-            break;
-        case AntRole::FORAGER:
-            antShape.setFillColor(sf::Color::Blue);
-            break;
-        case AntRole::SOLDIER:
-            antShape.setFillColor(sf::Color::Yellow);
-            break;
-        default:
-            antShape.setFillColor(sf::Color::Black);
-    }
+    FloatPosition currentPos = ant.getPosition();
+    FloatPosition prevPos = ant.getPreviousPosition();
+    
+    // Interpolate between previous and current position
+    float x = prevPos.getX() + (currentPos.getX() - prevPos.getX()) * interpolation;
+    float y = prevPos.getY() + (currentPos.getY() - prevPos.getY()) * interpolation;
+    antShape.setPosition({x, y});
+    antShape.setFillColor(ant.getColor());
     window.draw(antShape);
 }
 
@@ -67,21 +57,11 @@ void Visualizer::drawFood(float x, float y, float amount) {
     window.draw(foodShape);
 }
 
-void Visualizer::drawWorldInterpolated(const World& world, float interpolation) {
+void Visualizer::drawWorld(const World& world, float interpolation) {
     // Draw entities with interpolation between their current and previous positions
     for (const auto& ant : world.getAnts()) {
-        FloatPosition currentPos = (*ant).getPosition();
-        FloatPosition prevPos = (*ant).getPreviousPosition();
-        
-        // Interpolate between previous and current position
-        float x = prevPos.getX() + (currentPos.getX() - prevPos.getX()) * interpolation;
-        float y = prevPos.getY() + (currentPos.getY() - prevPos.getY()) * interpolation;
-        
-        drawAnt(*ant);
+        drawAnt(*ant, interpolation);
     }
-    
-    // Draw other world elements
-    // ...
 }
 
 void Visualizer::display() {
