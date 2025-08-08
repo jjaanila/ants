@@ -7,6 +7,7 @@
 #include <functional>
 #include "Ant.h"
 #include "Position.h"
+#include "Tile.h"
 
 // Forward declarations
 class Tile;
@@ -21,62 +22,6 @@ namespace std {
         }
     };
 }
-
-/**
- * @brief Types of terrain that can exist in a tile
- */
-enum class TerrainType {
-    SOIL,
-    SAND,
-    ROCK,
-    WATER,
-    GRASS,
-};
-
-/**
- * @brief Represents a single tile in the world
- */
-class Tile {
-private:
-    IntegerPosition position;
-    TerrainType terrain;
-    bool hasFood;
-    float foodAmount;
-    bool hasPheromone;
-    std::string pheromoneMessage;
-    int pheromoneStrength;
-    bool isNestEntrance;
-    std::vector<std::shared_ptr<Ant>> ants;
-    
-public:
-    Tile(IntegerPosition pos, TerrainType terrain = TerrainType::SOIL);
-    
-    // Getters
-    IntegerPosition getPosition() const;
-    TerrainType getTerrain() const;
-    bool getHasFood() const;
-    float getFoodAmount() const;
-    bool getHasPheromone() const;
-    std::string getPheromoneMessage() const;
-    int getPheromoneStrength() const;
-    bool getIsNestEntrance() const;
-    const std::vector<std::shared_ptr<Ant>>& getAnts() const;
-    
-    // Setters
-    void setTerrain(TerrainType newTerrain);
-    void addFood(float amount);
-    void removeFood(float amount);
-    void addPheromone(const std::string& message, int strength = 10);
-    void decreasePheromoneStrength(int amount = 1);
-    void setNestEntrance(bool isEntrance);
-    
-    // Ant management
-    void addAnt(std::shared_ptr<Ant> ant);
-    void removeAnt(std::shared_ptr<Ant> ant);
-    bool hasAnts() const;
-    int getAntCount() const;
-    std::string getDescription() const;
-};
 
 /**
  * @brief The main world class managing all tiles and coordinates
@@ -104,6 +49,7 @@ public:
     Tile* getTile(const IntegerPosition& pos);
     Tile* getTile(int x, int y);
     bool isValidPosition(const IntegerPosition& pos) const;
+    bool isValidPosition(const FloatPosition& pos) const;
     bool isValidPosition(int x, int y) const;
     float distanceToNest(const FloatPosition& pos) const;
     
@@ -127,7 +73,4 @@ public:
     
     // Iteration over tiles
     void forEachTile(std::function<void(Tile*)> callback);
-    
-    // Display
-    void display() const;
 };

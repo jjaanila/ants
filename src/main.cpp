@@ -5,16 +5,16 @@
 #include <vector>
 
 // Simulation parameters
-const int INITIAL_COLONY_SIZE = 10;
-const unsigned int WORLD_WIDTH = 800;
-const unsigned int WORLD_HEIGHT = 600;
-const float SIMULATION_STEPS_PER_SECOND = 0.2;
+const int initialColonySize = 10;
+const std::pair<unsigned int, unsigned int> worldSize = {50, 40};
+const std::pair<unsigned int, unsigned int> screenSize = {800, 600};
+const float simulationStepsPerSecond = 0.2;
 
 int main() {
-    Timer timer(SIMULATION_STEPS_PER_SECOND);
-    World world(WORLD_WIDTH, WORLD_HEIGHT, INITIAL_COLONY_SIZE);
-    world.initialize(INITIAL_COLONY_SIZE);
-    Visualizer visualizer(world.getWidth(), world.getHeight());
+    Timer timer(simulationStepsPerSecond);
+    World world(worldSize.first, worldSize.second, initialColonySize);
+    world.initialize(initialColonySize);
+    Visualizer visualizer(worldSize, screenSize);
     bool running = true;
     
     while (running && visualizer.isOpen()) {

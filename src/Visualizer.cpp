@@ -4,10 +4,33 @@
 #include "Visualizer.h"
 #include "World.h"
 
-
-Visualizer::Visualizer(unsigned int width, unsigned int height) : 
-    window(sf::VideoMode({width, height}), "Ants") {
+Visualizer::Visualizer(
+    std::pair<unsigned int, unsigned int> worldSize,
+    std::pair<unsigned int, unsigned int> screenSize
+)
+    : worldSize(worldSize),
+      window(sf::VideoMode({screenSize.first, screenSize.second}), "Ants") {
     window.setFramerateLimit(144);
+}
+
+float Visualizer::getWorldToScreenMultiplier() {
+    return (static_cast<float>(window.getSize().y - (marginWidth * 2)) / worldSize.second);
+}
+
+float Visualizer::scaleToScreen(float worldValue) {
+    return worldValue * getWorldToScreenMultiplier();
+}
+
+float Visualizer::scaleToWorld(float worldValue) {
+    return worldValue / getWorldToScreenMultiplier();
+}
+
+float Visualizer::toScreenCoordinate(float worldCoordinate) {
+    return scaleToScreen(worldCoordinate) + marginWidth;
+}
+
+float Visualizer::toWorldCoordinate(float screenCoordinate) {
+    return scaleToWorld(screenCoordinate - marginWidth);
 }
 
 void Visualizer::processEvents() {
@@ -18,28 +41,70 @@ void Visualizer::processEvents() {
 }
 
 void Visualizer::clear() {
-    window.clear(sf::Color(100, 100, 100));
+    window.clear(backgroundColor);
     antShapes.clear();
     foodShapes.clear();
 }
 
-void Visualizer::drawNest(float x, float y, float radius) {
-    nestShape.setSize(sf::Vector2f(radius * 2.0f, radius * 2.0f));
-    nestShape.setPosition({x - radius, y - radius});
-    nestShape.setFillColor(sf::Color(139, 69, 19)); // Brown
+void Visualizer::drawNest(World& world) {
+    sf::RectangleShape nestShape;
+    const auto position = world.getNestEntrancePosition();
+    nestShape.setSize(sf::Vector2f());
+    nestShape.setPosition({toScreenCoordinate(position.getX()), toScreenCoordinate(position.getY())});
+    nestShape.setFillColor(nestColor);
     window.draw(nestShape);
+}
+
+void Visualizer::drawTile(const Tile* tile) {
+    if (!tile) return;
+    const auto tileWorldPosition = tile->getPosition();
+    float screenX = toScreenCoordinate(tileWorldPosition.getX());
+    float screenY = toScreenCoordinate(tileWorldPosition.getY());
+    const float tileSize = scaleToScreen(1);
+    
+    // Create a rectangle shape for the tile
+    sf::RectangleShape tileShape(sf::Vector2f(tileSize, tileSize));
+    tileShape.setPosition({screenX, screenY});
+    
+    switch (tile->getTerrain()) {
+    case TerrainType::GRASS:
+        tileShape.setFillColor(sf::Color(34, 139, 34));  // Forest Green
+        break;
+    case TerrainType::ROCK:
+        tileShape.setFillColor(sf::Color(128, 128, 128));  // Gray
+        break;
+    case TerrainType::SAND:
+        tileShape.setFillColor(sf::Color(238, 214, 175));  // Sandy Brown
+        break;
+    case TerrainType::SOIL:
+        tileShape.setFillColor(sf::Color(200, 200, 150));  // Soil brown
+        break;
+    default:
+        tileShape.setFillColor(sf::Color(169, 169, 169));  // Dark Gray (default)
+        break;
+    }
+    
+    tileShape.setOutlineThickness(1.0f);
+    tileShape.setOutlineColor(sf::Color(0, 0, 0, 40));  // Semi-transparent black
+    window.draw(tileShape);
+}
+
+void Visualizer::drawTerrain(World& world) {
+    world.forEachTile([this](Tile* tile) {
+        drawTile(tile);
+    });
 }
 
 void Visualizer::drawAnt(Ant& ant, float interpolation) {
     sf::RectangleShape antShape;
-    antShape.setSize(sf::Vector2f(ant.getSize(), ant.getSize()));
+    antShape.setSize(sf::Vector2f(scaleToScreen(ant.getSize()), scaleToScreen(ant.getSize())));
     FloatPosition currentPos = ant.getPosition();
     FloatPosition prevPos = ant.getPreviousPosition();
     
     // Interpolate between previous and current position
     float x = prevPos.getX() + (currentPos.getX() - prevPos.getX()) * interpolation;
     float y = prevPos.getY() + (currentPos.getY() - prevPos.getY()) * interpolation;
-    antShape.setPosition({x, y});
+    antShape.setPosition({toScreenCoordinate(x), toScreenCoordinate(y)});
     antShape.setFillColor(ant.getColor());
     window.draw(antShape);
 }
@@ -57,8 +122,8 @@ void Visualizer::drawFood(float x, float y, float amount) {
     window.draw(foodShape);
 }
 
-void Visualizer::drawWorld(const World& world, float interpolation) {
-    // Draw entities with interpolation between their current and previous positions
+void Visualizer::drawWorld(World& world, float interpolation) {
+    drawTerrain(world);
     for (const auto& ant : world.getAnts()) {
         drawAnt(*ant, interpolation);
     }

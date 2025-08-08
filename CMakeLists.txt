@@ -19,6 +19,7 @@ add_executable(
     ./src/Ant.cpp 
     ./src/Id.cpp 
     ./src/MovementStrategy.cpp
+    ./src/Tile.cpp
     ./src/Timer.cpp
     ./src/Visualizer.cpp
     ./src/World.cpp

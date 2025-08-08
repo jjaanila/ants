@@ -3,141 +3,9 @@
 #include <queue>
 #include <unordered_set>
 #include "rng.h"
+#include "Tile.h"
 #include "World.h"
 
-// Tile implementation
-Tile::Tile(IntegerPosition pos, TerrainType terrain) 
-    : position(pos), 
-      terrain(terrain), 
-      hasFood(false), 
-      foodAmount(0.0), 
-      hasPheromone(false), 
-      pheromoneStrength(0), 
-      isNestEntrance(false) {
-}
-
-IntegerPosition Tile::getPosition() const {
-    return position;
-}
-
-TerrainType Tile::getTerrain() const {
-    return terrain;
-}
-
-bool Tile::getHasFood() const {
-    return hasFood;
-}
-
-float Tile::getFoodAmount() const {
-    return foodAmount;
-}
-
-bool Tile::getHasPheromone() const {
-    return hasPheromone;
-}
-
-std::string Tile::getPheromoneMessage() const {
-    return pheromoneMessage;
-}
-
-int Tile::getPheromoneStrength() const {
-    return pheromoneStrength;
-}
-
-bool Tile::getIsNestEntrance() const {
-    return isNestEntrance;
-}
-
-const std::vector<std::shared_ptr<Ant>>& Tile::getAnts() const {
-    return ants;
-}
-
-void Tile::setTerrain(TerrainType newTerrain) {
-    terrain = newTerrain;
-}
-
-void Tile::addFood(float amount) {
-    foodAmount += amount;
-    hasFood = foodAmount > 0;
-}
-
-void Tile::removeFood(float amount) {
-    foodAmount -= amount;
-    if (foodAmount <= 0) {
-        foodAmount = 0;
-        hasFood = false;
-    }
-}
-
-void Tile::addPheromone(const std::string& message, int strength) {
-    pheromoneMessage = message;
-    pheromoneStrength = strength;
-    hasPheromone = true;
-}
-
-void Tile::decreasePheromoneStrength(int amount) {
-    pheromoneStrength -= amount;
-    if (pheromoneStrength <= 0) {
-        pheromoneStrength = 0;
-        hasPheromone = false;
-    }
-}
-
-void Tile::setNestEntrance(bool isEntrance) {
-    isNestEntrance = isEntrance;
-}
-
-void Tile::addAnt(std::shared_ptr<Ant> ant) {
-    ants.push_back(ant);
-}
-
-void Tile::removeAnt(std::shared_ptr<Ant> ant) {
-    auto it = std::find(ants.begin(), ants.end(), ant);
-    if (it != ants.end()) {
-        ants.erase(it);
-    }
-}
-
-bool Tile::hasAnts() const {
-    return !ants.empty();
-}
-
-int Tile::getAntCount() const {
-    return ants.size();
-}
-
-std::string Tile::getDescription() const {
-    std::string desc = "Tile at " + position.toString() + " - ";
-    
-    // Terrain type
-    switch (terrain) {
-        case TerrainType::SOIL: desc += "Soil"; break;
-        case TerrainType::SAND: desc += "Sand"; break;
-        case TerrainType::ROCK: desc += "Rock"; break;
-        case TerrainType::WATER: desc += "Water"; break;
-        case TerrainType::GRASS: desc += "Grass"; break;
-    }
-    
-    // Additional information
-    if (isNestEntrance) {
-        desc += " (Nest Entrance)";
-    }
-    
-    if (hasFood) {
-        desc += ", Food: " + std::to_string(foodAmount);
-    }
-    
-    if (hasPheromone) {
-        desc += ", Pheromone: \"" + pheromoneMessage + "\" (Strength: " 
-               + std::to_string(pheromoneStrength) + ")";
-    }
-    
-    if (hasAnts()) {
-        desc += ", Ants: " + std::to_string(ants.size());
-    }
-    
-    return desc;
-}
 
 // World implementation
 World::World(unsigned int width, unsigned int height, const unsigned int initial_colony_size)
@@ -148,7 +16,6 @@ World::World(unsigned int width, unsigned int height, const unsigned int initial
 }
 
 void World::initialize(const unsigned int initial_colony_size) {
-    // Create all tiles
     for (unsigned int x = 0; x < width; x++) {
         for (unsigned int y = 0; y < height; y++) {
             IntegerPosition pos(x, y);
@@ -156,10 +23,8 @@ void World::initialize(const unsigned int initial_colony_size) {
         }
     }
     
-    // Generate interesting terrain
     generateTerrain();
     
-    // Place nest at the center by default
     placeNest(IntegerPosition(width / 2, height / 2));
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
     const IntegerPosition nestPosition = getNestEntrancePosition();
@@ -223,25 +88,6 @@ void World::generateTerrain() {
             }
         }
     }
-    
-    // Make some water bodies
-    int numWaterBodies = width * height / 200;
-    for (int i = 0; i < numWaterBodies; i++) {
-        int centerX = distr(gen) % width;
-        int centerY = distr(gen) % height;
-        
-        int size = 3 + distr(gen) % 5;
-        for (int dx = -size; dx <= size; dx++) {
-            for (int dy = -size; dy <= size; dy++) {
-                int distance = dx*dx + dy*dy;
-                if (distance <= size*size && isValidPosition(centerX + dx, centerY + dy)) {
-                    if (distr(gen) < 70) {
-                        getTile(centerX + dx, centerY + dy)->setTerrain(TerrainType::WATER);
-                    }
-                }
-            }
-        }
-    }
 }
 
 float World::distanceToNest(const FloatPosition& pos) const {
@@ -250,9 +96,8 @@ float World::distanceToNest(const FloatPosition& pos) const {
 
 void World::placeFood(const IntegerPosition& pos, float amount) {
     if (isValidPosition(pos)) {
-        // Don't place food on water or nest
         Tile* tile = getTile(pos);
-        if (tile->getTerrain() != TerrainType::WATER && !tile->getIsNestEntrance()) {
+        if (!tile->getIsNestEntrance()) {
             tile->addFood(amount);
         }
     }
@@ -274,6 +119,10 @@ const std::vector<std::shared_ptr<Ant>>& World::getAnts() const {
 }
 
 bool World::isValidPosition(const IntegerPosition& pos) const {
+    return pos.getX() >= 0 && pos.getX() < width && pos.getY() >= 0 && pos.getY() < height;
+}
+
+bool World::isValidPosition(const FloatPosition& pos) const {
     return pos.getX() >= 0 && pos.getX() < width && pos.getY() >= 0 && pos.getY() < height;
 }
 
@@ -336,7 +185,6 @@ void World::spawnFood(int count, float amountPerSpawn) {
             Tile* tile = getTile(pos);
             
             if (tile && 
-                tile->getTerrain() != TerrainType::WATER && 
                 !tile->getIsNestEntrance() &&
                 !tile->getHasFood()) {
                 

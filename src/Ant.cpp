@@ -30,59 +30,61 @@ Ant::Ant(AntRole role)
 
 void Ant::initializeRoleAttributes() {
     weight = size / 2.0;
+    const float baseSize = 0.5;
+    const float baseMovementSpeed = 1;
     switch (role) {
         case AntRole::QUEEN:
             color = sf::Color::Yellow;
-            size = 10.0;  // Queens are larger
+            size = baseSize * 2;  // Queens are larger
             lifespan = 365 * 15;  // Queens can live for years
             eggLayingRate = 1000; // Eggs per day
             hasWings = true;      // Queens start with wings but lose them
-            movementSpeed = 5.0;
+            movementSpeed = baseMovementSpeed;
             movementStrategy = std::make_unique<QueenMovementStrategy>();
             break;
             
         case AntRole::WORKER:
             color = sf::Color::Black;
-            size = 5.0;
+            size = baseSize;
             lifespan = 365;  // ~1 year
             carryCapacity = size * 2.0;
-            movementSpeed = 10.0;
+            movementSpeed = baseMovementSpeed;
             movementStrategy = std::make_unique<WorkerMovementStrategy>();
             break;
             
         case AntRole::SOLDIER:
             color = sf::Color::Red;
-            size = 7.5;  // Soldiers are larger than workers
+            size = baseSize * 1.3;  // Soldiers are larger than workers
             lifespan = 365;
             attackPower = size * 3.0;
-            movementSpeed = 15.0;
+            movementSpeed = baseMovementSpeed * 1.5;
             movementStrategy = std::make_unique<SoldierMovementStrategy>();
             break;
             
         case AntRole::DRONE:
             color = sf::Color::Cyan;
-            size = 5.0;
+            size = baseSize;
             lifespan = 90;  // Shorter lifespan
             hasWings = true;
-            movementSpeed = 5.0;
+            movementSpeed = baseMovementSpeed;
             movementStrategy = std::make_unique<DroneMovementStrategy>();
             break;
             
         case AntRole::FORAGER:
             color = sf::Color::Blue;
-            size = 5.0;
+            size = baseSize;
             lifespan = 180;
             carryCapacity = size * 1.5;
-            movementSpeed = 5.0;
+            movementSpeed = baseMovementSpeed;
             movementStrategy = std::make_unique<ForagerMovementStrategy>();
             break;
             
         case AntRole::NURSE:
             color = sf::Color::Green;
-            size = 5.0;
+            size = baseSize;
             lifespan = 365;
             nursingEfficiency = 10.0;
-            movementSpeed = 5.0;
+            movementSpeed = baseMovementSpeed;
             movementStrategy = std::make_unique<NurseMovementStrategy>();
             break;
     }
@@ -153,25 +155,15 @@ void Ant::update(World& world) {
 // Behavior methods implementations
 void Ant::move(const Vector2D& direction, World& world) {
     FloatPosition newPosition = *position + direction * movementSpeed;
-    if (world.isValidPosition(newPosition.getX(), newPosition.getY())) {
+    if (world.isValidPosition(newPosition)) {
+        wanderRandomness = initialWanderRandomness;
         previousPosition = std::make_unique<FloatPosition>(*position);
         position = std::make_unique<FloatPosition>(newPosition); 
     } else {
         // Hit obstacle, increase randomness for next move
         wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
+        previousPosition = std::make_unique<FloatPosition>(*position);
     }
-    float distance = direction.magnitude();
-    float energyConsumption = distance * 0.1;
-    if (role == AntRole::QUEEN) {
-        energyConsumption *= 2.0;
-    } else if (role == AntRole::SOLDIER) {
-        energyConsumption *= 1.5;
-    } else if (role == AntRole::FORAGER) {
-        energyConsumption *= 0.8;
-    }
-    
-    energy -= energyConsumption;
-    if (energy < 0) energy = 0;
 }
 
 void Ant::forage() {
@@ -298,7 +290,6 @@ void Ant::eatFood(const std::string& foodType, float amount) {
     if (energy > 100.0) energy = 100.0;
 }
 
-// Status methods implementations
 bool Ant::isAlive() const {
     return energy > 0;
 }

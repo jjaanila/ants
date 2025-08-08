@@ -44,7 +44,8 @@ private:
     float carryCapacity; // For workers and foragers
     float nursingEfficiency; // For nurses
     Vector2D lastDirection;
-    float wanderRandomness{0.8f};
+    float initialWanderRandomness{0.8f};
+    float wanderRandomness{initialWanderRandomness};
 
 public:
     Ant(AntRole role);
