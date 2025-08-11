@@ -19,9 +19,7 @@ private:
     std::vector<sf::RectangleShape> antShapes;
     sf::RectangleShape nestShape;
     std::vector<sf::RectangleShape> foodShapes;
-    float marginWidth = 20.0f;
-    
-    const float CELL_SIZE = 10.0f;     
+    float marginWidth = 20.0f; 
     float getWorldToScreenMultiplier();
     float scaleToScreen(float worldValue);
     float scaleToWorld(float screenValue);
@@ -36,7 +34,7 @@ private:
     
     void drawAnt(Ant& ant, float interpolation);
     
-    void drawFood(float x, float y, float amount);
+    void drawFood(const IntegerPosition& pos, float amount);
 
 public:
     Visualizer(std::pair<unsigned int, unsigned int> worldSize, std::pair<unsigned int, unsigned int> screenSize);

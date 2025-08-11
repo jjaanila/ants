@@ -47,6 +47,7 @@ public:
     
     // Tile access
     Tile* getTile(const IntegerPosition& pos);
+    Tile* getTile(const FloatPosition& pos);
     Tile* getTile(int x, int y);
     bool isValidPosition(const IntegerPosition& pos) const;
     bool isValidPosition(const FloatPosition& pos) const;
@@ -59,7 +60,7 @@ public:
     // World interactions
     void addPheromone(const IntegerPosition& pos, const std::string& message, int strength = 10);
     void updatePheromones();
-    void spawnFood(int count, float amountPerSpawn);
+    void spawnFood(int count);
     void update();
     
     // Ant management

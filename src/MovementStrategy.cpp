@@ -46,6 +46,28 @@ Vector2D NurseMovementStrategy::getMovementDirection(Ant& ant, World& world) {
 
 // ForagerMovementStrategy implementation
 Vector2D ForagerMovementStrategy::getMovementDirection(Ant& ant, World& world) {
+    const auto tile = world.getTile(ant.getPosition());
+    if (tile->getHasFood() && ant.getCurrentLoad() < ant.getMaxLoad()) {
+        float amountToPickUp = std::min(1.0f, ant.getMaxLoad() - ant.getCurrentLoad());
+        if (ant.pickUpItem(ItemType::FOOD, amountToPickUp)) {
+            ant.communicateWithPheromones("Found food");
+        }
+    }
+    
+    // Determine if forager should return to nest
+    bool shouldReturnToNest = ant.getCurrentLoad() >= ant.getMaxLoad();
+    
+    // Update movement strategy based on carrying status
+    if (shouldReturnToNest) {
+        // If we're full, head back to the nest
+        FloatPosition nestPosition = world.getNestEntrancePosition();
+        const auto antPosition = ant.getPosition();
+        if (tile->getIsNestEntrance()) {
+            ant.dropItem(ItemType::FOOD);
+        } else {
+            return directionTowards(antPosition, world.getNestEntrancePosition());
+        }
+    }
     return addRandomnessToDirection(ant.getLastDirection(), ant.getWanderRandomness());
 }
 

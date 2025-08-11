@@ -1,4 +1,3 @@
-// Ant.h
 #pragma once
 
 #include <string>
@@ -12,7 +11,14 @@
 class MovementStrategy;
 class World;
 
-// Define ant roles as an enum
+enum class ItemType {
+    FOOD,
+    LARVA,
+    EGG,
+};
+
+std::string itemTypeToString(ItemType type);
+
 enum class AntRole {
     QUEEN,
     WORKER,
@@ -21,6 +27,7 @@ enum class AntRole {
     FORAGER,
     NURSE
 };
+
 
 class Ant {
 private:
@@ -31,7 +38,6 @@ private:
     float weight; // in milligrams
     bool hasWings;
     int age; // in days
-    std::string colony;
     std::vector<std::string> foodPreferences;
     int lifespan; // in days, varies by role
     float energy; // 0.0 to 100.0
@@ -41,11 +47,13 @@ private:
     std::unique_ptr<MovementStrategy> movementStrategy;
     int eggLayingRate;  // For queens, eggs per day
     float attackPower; // For soldiers
-    float carryCapacity; // For workers and foragers
+    float maxLoad; // For workers and foragers
     float nursingEfficiency; // For nurses
     Vector2D lastDirection;
     float initialWanderRandomness{0.8f};
     float wanderRandomness{initialWanderRandomness};
+    std::unordered_map<ItemType, float> carriedItems;  // Maps item type to amount/weight
+    const std::unordered_map<ItemType, float>& getCarriedItems() const;
 
 public:
     Ant(AntRole role);
@@ -60,20 +68,22 @@ public:
     void setColor(const sf::Color& color);
     bool getHasWings() const;
     void setHasWings(bool hasWings);
-    std::string getColony() const;
-    void setColony(const std::string& colony);
     float getEnergyLevel() const;
     FloatPosition getPosition() const;
     void setPosition(FloatPosition newPosition);
     Vector2D getLastDirection() const;
     FloatPosition getPreviousPosition() const;
     float getWanderRandomness() const;
+    float getCurrentLoad() const;
+    float getMaxLoad() const;
+    void log(const std::string& message) const;
 
     void update(World& world);
     void move(const Vector2D& direction, World& world);
     void rest(int minutes);
     void eatFood(const std::string& foodType, float amount);
-    void forage();  // Primarily for foragers
+    bool pickUpItem(ItemType itemType, float amount);
+    void dropItem(std::optional<ItemType> itemType = std::nullopt);
     void communicateWithPheromones(const std::string& message);
     void defend();  // Primarily for soldiers
     void buildNest();  // Primarily for workers
@@ -82,7 +92,6 @@ public:
     void mate();  // Only for queens and drones
     bool isAlive() const;
     void displayStatus() const;
-    sf::RectangleShape draw() const;
     
 private:
     void initializeRoleAttributes();

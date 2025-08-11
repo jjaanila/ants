@@ -46,7 +46,7 @@ void World::initialize(const unsigned int initial_colony_size) {
         }
         addAnt(std::make_shared<Ant>(role), nestPosition);
     }
-    spawnFood(50, 5.0);
+    spawnFood(width * height / 20);
 }
 
 IntegerPosition World::getNestEntrancePosition() const {
@@ -94,20 +94,15 @@ float World::distanceToNest(const FloatPosition& pos) const {
     return pos.distanceTo(getNestEntrancePosition());
 }
 
-void World::placeFood(const IntegerPosition& pos, float amount) {
-    if (isValidPosition(pos)) {
-        Tile* tile = getTile(pos);
-        if (!tile->getIsNestEntrance()) {
-            tile->addFood(amount);
-        }
-    }
-}
-
 Tile* World::getTile(const IntegerPosition& pos) {
     if (isValidPosition(pos)) {
         return tiles[pos].get();
     }
     return nullptr;
+}
+
+Tile* World::getTile(const FloatPosition& pos) {
+    return getTile(pos.toIntegerPosition());
 }
 
 Tile* World::getTile(int x, int y) {
@@ -172,11 +167,21 @@ void World::update() {
     updateAnts();
 }
 
-void World::spawnFood(int count, float amountPerSpawn) {
+void World::placeFood(const IntegerPosition& pos, float amount) {
+    if (isValidPosition(pos)) {
+        Tile* tile = getTile(pos);
+        if (!tile->getIsNestEntrance()) {
+            tile->addFood(amount);
+        }
+    }
+}
+
+void World::spawnFood(int count) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> posX(0, width - 1);
     std::uniform_int_distribution<> posY(0, height - 1);
+    std::uniform_int_distribution<> amount(1, 100);
     
     for (int i = 0; i < count; i++) {
         // Try to find suitable location
@@ -188,7 +193,7 @@ void World::spawnFood(int count, float amountPerSpawn) {
                 !tile->getIsNestEntrance() &&
                 !tile->getHasFood()) {
                 
-                placeFood(pos, amountPerSpawn);
+                placeFood(pos, amount(gen));
                 break;
             }
         }

@@ -200,6 +200,13 @@ public:
     std::string toString() const override {
         return "Float" + Position::toString();
     }
+
+    IntegerPosition toIntegerPosition() const {
+        unsigned int intX = static_cast<unsigned int>(std::floor(vector.x));
+        unsigned int intY = static_cast<unsigned int>(std::floor(vector.y));
+        
+        return IntegerPosition(intX, intY);
+    }
 };
 
 inline FloatPosition IntegerPosition::operator+(const FloatPosition& other) const {

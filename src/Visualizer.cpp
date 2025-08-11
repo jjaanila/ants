@@ -92,6 +92,9 @@ void Visualizer::drawTile(const Tile* tile) {
 void Visualizer::drawTerrain(World& world) {
     world.forEachTile([this](Tile* tile) {
         drawTile(tile);
+        if (tile->getHasFood()) {
+            drawFood(tile->getPosition(), tile->getFoodAmount());
+        }
     });
 }
 
@@ -109,10 +112,12 @@ void Visualizer::drawAnt(Ant& ant, float interpolation) {
     window.draw(antShape);
 }
 
-void Visualizer::drawFood(float x, float y, float amount) {
+void Visualizer::drawFood(const IntegerPosition& pos, float amount) {
     sf::RectangleShape foodShape;
-    foodShape.setSize(sf::Vector2f(CELL_SIZE, CELL_SIZE));
-    foodShape.setPosition({x, y});
+    const float tileSize = scaleToScreen(1);
+    const float width = tileSize / 2;
+    foodShape.setSize(sf::Vector2f(width, width));
+    foodShape.setPosition({toScreenCoordinate(pos.getX()) + width/2, toScreenCoordinate(pos.getY()) + width/2});
     
     // Brighter green for more food
     int intensity = std::min(255, static_cast<int>(100 + amount * 155 / 100));
