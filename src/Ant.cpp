@@ -101,6 +101,24 @@ void Ant::initializeRoleAttributes() {
 Ant::~Ant() {
 }
 
+void Ant::setDestination(const FloatPosition& dest) {
+    destination = dest;
+    hasReachedDestination = false;
+}
+
+void Ant::clearDestination() {
+    destination = std::nullopt;
+    hasReachedDestination = false;
+}
+
+bool Ant::hasDestination() const {
+    return destination.has_value();
+}
+
+bool Ant::isAtDestination() const {
+    return hasReachedDestination;
+}
+
 // Role-related methods
 AntRole Ant::getRole() const { return role; }
 
@@ -178,18 +196,58 @@ void Ant::update(World& world) {
 }
 
 void Ant::move(const Vector2D& direction, World& world) {
-    FloatPosition newPosition = *position + direction * movementSpeed;
-    if (world.isValidPosition(newPosition)) {
-        wanderRandomness = initialWanderRandomness;
-        previousPosition = std::make_unique<FloatPosition>(*position);
-        position = std::make_unique<FloatPosition>(newPosition); 
+    // If we have a destination, move toward it instead of using the provided direction
+    if (destination.has_value() && !hasReachedDestination) {
+        const FloatPosition& dest = destination.value();
+        
+        // Calculate distance to destination
+        float distanceToDestination = position->distanceTo(dest);
+        
+        // If we're close enough, consider it reached
+        if (distanceToDestination <= movementSpeed) {
+            // Set position directly to destination to avoid overshooting
+            previousPosition = std::make_unique<FloatPosition>(*position);
+            position = std::make_unique<FloatPosition>(dest);
+            hasReachedDestination = true;
+            return;
+        }
+        
+        // Not close enough yet, calculate direction to destination
+        Vector2D directionToDestination = Vector2D(
+            dest.getX() - position->getX(),
+            dest.getY() - position->getY()
+        ).normalized();
+        
+        // Calculate new position based on direction to destination
+        FloatPosition newPosition = *position + directionToDestination * movementSpeed;
+        
+        // Check if valid and move
+        if (world.isValidPosition(newPosition)) {
+            wanderRandomness = initialWanderRandomness;
+            previousPosition = std::make_unique<FloatPosition>(*position);
+            position = std::make_unique<FloatPosition>(newPosition);
+        } else {
+            // Hit obstacle, increase randomness for next move
+            wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
+            previousPosition = std::make_unique<FloatPosition>(*position);
+            
+            // Optionally, add some random deviation to try to get around obstacles
+            // This could be part of a more sophisticated pathfinding approach
+        }
     } else {
-        // Hit obstacle, increase randomness for next move
-        wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
-        previousPosition = std::make_unique<FloatPosition>(*position);
+        // No destination or already reached destination, use the provided direction
+        FloatPosition newPosition = *position + direction * movementSpeed;
+        if (world.isValidPosition(newPosition)) {
+            wanderRandomness = initialWanderRandomness;
+            previousPosition = std::make_unique<FloatPosition>(*position);
+            position = std::make_unique<FloatPosition>(newPosition);
+        } else {
+            // Hit obstacle, increase randomness for next move
+            wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
+            previousPosition = std::make_unique<FloatPosition>(*position);
+        }
     }
 }
-
 
 bool Ant::pickUpItem(ItemType itemType, float amount) {
     // Only certain roles can carry items

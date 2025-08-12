@@ -54,6 +54,8 @@ private:
     float wanderRandomness{initialWanderRandomness};
     std::unordered_map<ItemType, float> carriedItems;  // Maps item type to amount/weight
     const std::unordered_map<ItemType, float>& getCarriedItems() const;
+    std::optional<FloatPosition> destination = std::nullopt;
+    bool hasReachedDestination = false;
 
 public:
     Ant(AntRole role);
@@ -76,6 +78,10 @@ public:
     float getWanderRandomness() const;
     float getCurrentLoad() const;
     float getMaxLoad() const;
+    void setDestination(const FloatPosition& dest);
+    void clearDestination();
+    bool hasDestination() const;
+    bool isAtDestination() const;
     void log(const std::string& message) const;
 
     void update(World& world);
@@ -92,6 +98,7 @@ public:
     void mate();  // Only for queens and drones
     bool isAlive() const;
     void displayStatus() const;
+    
     
 private:
     void initializeRoleAttributes();
