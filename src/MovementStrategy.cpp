@@ -53,9 +53,13 @@ Vector2D ForagerMovementStrategy::getMovementDirection(Ant& ant, World& world) {
         && ant.getCurrentLoad() < ant.getMaxLoad()
         && !isNest
     ) {
-        float amountToPickUp = std::min(1.0f, ant.getMaxLoad() - ant.getCurrentLoad());
+        float amountToPickUp = ant.getMaxLoad() - ant.getCurrentLoad();
         if (ant.pickUpItem(ItemType::FOOD, amountToPickUp)) {
-            ant.communicateWithPheromones("Found food");
+            if (tile->getHasFood()) {
+                ant.startPheromone("Found food", world);
+            } else {
+                ant.stopPheromone("Found food");
+            }
         }
     }
     

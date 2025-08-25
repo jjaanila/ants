@@ -308,8 +308,13 @@ void Ant::dropItem(std::optional<ItemType> itemType) {
     }
 }
 
-void Ant::communicateWithPheromones(const std::string& message) {
-    log("is leaving a pheromone trail: " + message);
+void Ant::startPheromone(const std::string& message, World& world) {
+    releasingPheromone = message;
+    world.addPheromone(IntegerPosition(*position), releasingPheromone.value());
+}
+
+void Ant::stopPheromone(const std::string& message) {
+    releasingPheromone = std::nullopt;
 }
 
 void Ant::rest(int minutes) {

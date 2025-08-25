@@ -50,6 +50,7 @@ private:
 
 public:
     IntegerPosition(unsigned int x = 0, unsigned int y = 0) : x(x), y(y) {}
+    IntegerPosition(const FloatPosition& pos);
     
     // Implementation of the Position interface
     float getX() const override { return static_cast<float>(x); }
@@ -216,3 +217,5 @@ inline FloatPosition IntegerPosition::operator+(const FloatPosition& other) cons
 inline FloatPosition IntegerPosition::operator-(const FloatPosition& other) const {
     return FloatPosition(x - other.getX(), y - other.getY());
 }
+
+inline IntegerPosition::IntegerPosition(const FloatPosition& pos) : x(pos.getX()), y(pos.getY()) {}
