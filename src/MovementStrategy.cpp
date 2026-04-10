@@ -6,10 +6,8 @@
 
 
 Vector2D MovementStrategy::getRandomDirection() const {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_real_distribution<float> dist(0, 2 * M_PI);
-    float angle = dist(gen);
+    std::uniform_real_distribution<float> dist(0, 2 * M_PI);
+    float angle = dist(rng);
     return Vector2D(std::cos(angle), std::sin(angle));
 }
 

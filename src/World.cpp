@@ -2,17 +2,23 @@
 #include <random>
 #include <queue>
 #include <unordered_set>
-#include "rng.h"
 #include "Tile.h"
 #include "World.h"
 
 
-// World implementation
-World::World(unsigned int width, unsigned int height, const unsigned int initial_colony_size)
+World::World(unsigned int width, unsigned int height, const unsigned int initial_colony_size,
+             std::optional<unsigned int> seed)
     :
+    rng(seed.value_or(std::random_device{}())),
     width(width),
     height(height) {
     initialize(initial_colony_size);
+}
+
+std::shared_ptr<Ant> World::createAnt(AntRole role, const IntegerPosition& pos) {
+    auto ant = std::make_shared<Ant>(role, idGenerator.getNextId(), rng);
+    addAnt(ant, pos);
+    return ant;
 }
 
 void World::initialize(const unsigned int initial_colony_size) {
@@ -22,29 +28,29 @@ void World::initialize(const unsigned int initial_colony_size) {
             tiles[pos] = std::make_unique<Tile>(pos, TerrainType::SOIL);
         }
     }
-    
+
     generateTerrain();
-    
+
     placeNest(IntegerPosition(width / 2, height / 2));
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
     const IntegerPosition nestPosition = getNestEntrancePosition();
-    addAnt(std::make_shared<Ant>(AntRole::QUEEN), nestPosition);
+    createAnt(AntRole::QUEEN, nestPosition);
+
+    std::uniform_int_distribution<int> roleRoll(1, 100);
     for (int i = 1; i < initial_colony_size; ++i) {
-        int roleRandom = getRandomInt(1, 100);
+        const int roll = roleRoll(rng);
         AntRole role;
-        
-        if (roleRandom <= 45) {
+        if (roll <= 45) {
             role = AntRole::WORKER;
-        } else if (roleRandom <= 70) {
+        } else if (roll <= 70) {
             role = AntRole::FORAGER;
-        } else if (roleRandom <= 85) {
+        } else if (roll <= 85) {
             role = AntRole::SOLDIER;
-        } else if (roleRandom <= 95) {
+        } else if (roll <= 95) {
             role = AntRole::NURSE;
         } else {
             role = AntRole::DRONE;
         }
-        addAnt(std::make_shared<Ant>(role), nestPosition);
+        createAnt(role, nestPosition);
     }
     spawnFood(width * height / 20);
 }
@@ -74,16 +80,14 @@ int World::getHeight() const {
 }
 
 void World::generateTerrain() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::uniform_int_distribution<> distr(0, 100);
     std::uniform_int_distribution<> terrainType(0, 4);
-    
+
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             // 10% chance of special terrain
-            if (distr(gen) < 10) {
-                TerrainType terrain = static_cast<TerrainType>(terrainType(gen));
+            if (distr(rng) < 10) {
+                TerrainType terrain = static_cast<TerrainType>(terrainType(rng));
                 getTile(x, y)->setTerrain(terrain);
             }
         }
@@ -177,23 +181,21 @@ void World::placeFood(const IntegerPosition& pos, float amount) {
 }
 
 void World::spawnFood(int count) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::uniform_int_distribution<> posX(0, width - 1);
     std::uniform_int_distribution<> posY(0, height - 1);
     std::uniform_int_distribution<> amount(1, 100);
-    
+
     for (int i = 0; i < count; i++) {
         // Try to find suitable location
         for (int attempts = 0; attempts < 10; attempts++) {
-            IntegerPosition pos(posX(gen), posY(gen));
+            IntegerPosition pos(posX(rng), posY(rng));
             Tile* tile = getTile(pos);
-            
-            if (tile && 
+
+            if (tile &&
                 !tile->getIsNestEntrance() &&
                 !tile->getHasFood()) {
-                
-                placeFood(pos, amount(gen));
+
+                placeFood(pos, amount(rng));
                 break;
             }
         }

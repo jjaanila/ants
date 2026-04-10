@@ -1,6 +1,5 @@
 // Ant.cpp
 #include "Ant.h"
-#include "Id.h"
 #include "MovementStrategy.h"
 #include "Position.h"
 #include "Tile.h"
@@ -20,8 +19,10 @@ std::string itemTypeToString(ItemType type) {
     }
 }
 
-Ant::Ant(AntRole role)
-    : role(role),
+Ant::Ant(AntRole role, int id, std::mt19937& rng)
+    : rng(rng),
+      id(id),
+      role(role),
       hasWings(role == AntRole::QUEEN || role == AntRole::DRONE),
       age(0),
       energy(100.0),
@@ -32,7 +33,6 @@ Ant::Ant(AntRole role)
       nursingEfficiency(0.0),
       lastDirection(0.0f, 0.0f)
 {
-    id = UniqueIdGenerator::getNextId();
     foodPreferences = {"sugar", "protein", "seeds"};
     initializeRoleAttributes();
 }
@@ -49,7 +49,7 @@ void Ant::initializeRoleAttributes() {
             eggLayingRate = 1000; // Eggs per day
             hasWings = true;      // Queens start with wings but lose them
             movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<QueenMovementStrategy>();
+            movementStrategy = std::make_unique<QueenMovementStrategy>(rng);
             break;
             
         case AntRole::WORKER:
@@ -58,7 +58,7 @@ void Ant::initializeRoleAttributes() {
             lifespan = 365;  // ~1 year
             maxLoad = size * 2.0;
             movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<WorkerMovementStrategy>();
+            movementStrategy = std::make_unique<WorkerMovementStrategy>(rng);
             break;
             
         case AntRole::SOLDIER:
@@ -67,7 +67,7 @@ void Ant::initializeRoleAttributes() {
             lifespan = 365;
             attackPower = size * 3.0;
             movementSpeed = baseMovementSpeed * 1.5;
-            movementStrategy = std::make_unique<SoldierMovementStrategy>();
+            movementStrategy = std::make_unique<SoldierMovementStrategy>(rng);
             break;
             
         case AntRole::DRONE:
@@ -76,7 +76,7 @@ void Ant::initializeRoleAttributes() {
             lifespan = 90;  // Shorter lifespan
             hasWings = true;
             movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<DroneMovementStrategy>();
+            movementStrategy = std::make_unique<DroneMovementStrategy>(rng);
             break;
             
         case AntRole::FORAGER:
@@ -85,7 +85,7 @@ void Ant::initializeRoleAttributes() {
             lifespan = 180;
             maxLoad = size * 1.5;
             movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<ForagerMovementStrategy>();
+            movementStrategy = std::make_unique<ForagerMovementStrategy>(rng);
             break;
             
         case AntRole::NURSE:
@@ -94,7 +94,7 @@ void Ant::initializeRoleAttributes() {
             lifespan = 365;
             nursingEfficiency = 10.0;
             movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<NurseMovementStrategy>();
+            movementStrategy = std::make_unique<NurseMovementStrategy>(rng);
             break;
     }
 }

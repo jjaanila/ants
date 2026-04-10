@@ -1,11 +1,14 @@
 #pragma once
 
+#include <optional>
+#include <random>
 #include <vector>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <functional>
 #include "Ant.h"
+#include "Id.h"
 #include "Position.h"
 #include "Tile.h"
 
@@ -31,14 +34,18 @@ private:
     std::unordered_map<IntegerPosition, std::unique_ptr<Tile>> tiles;
     std::vector<std::shared_ptr<Ant>> ants;
     std::unique_ptr<IntegerPosition> nestEntrancePosition;
+    std::mt19937 rng;
+    UniqueIdGenerator idGenerator;
 
     void updateAnts();
-    
+    std::shared_ptr<Ant> createAnt(AntRole role, const IntegerPosition& pos);
+
 public:
     const unsigned int width;
     const unsigned int height;
-    World(unsigned int width, unsigned int height, unsigned int initial_colony_size);
-    
+    World(unsigned int width, unsigned int height, unsigned int initial_colony_size,
+          std::optional<unsigned int> seed = std::nullopt);
+
     // World initialization
     void initialize(unsigned int initial_colony_size);
     void generateTerrain();

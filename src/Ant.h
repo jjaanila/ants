@@ -1,5 +1,6 @@
 #pragma once
 
+#include <random>
 #include <string>
 #include <vector>
 #include <memory>
@@ -31,6 +32,7 @@ enum class AntRole {
 
 class Ant {
 private:
+    std::mt19937& rng;
     int id;
     AntRole role;
     float size;
@@ -59,7 +61,7 @@ private:
     std::optional<std::string> releasingPheromone = std::nullopt;
 
 public:
-    Ant(AntRole role);
+    Ant(AntRole role, int id, std::mt19937& rng);
     ~Ant();
     AntRole getRole() const;
     void setRole(AntRole role);

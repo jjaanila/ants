@@ -3,6 +3,7 @@
 #include <vector>
 #include <variant>
 #include <optional>
+#include <random>
 #include <string>
 #include "Position.h"
 #include "Vector2D.h"
@@ -57,45 +58,54 @@ struct SensoryInput {
 // Base strategy class
 class MovementStrategy {
 protected:
+    std::mt19937& rng;
     Vector2D getRandomDirection() const;
     Vector2D directionTowards(const FloatPosition& position, const FloatPosition& target) const;
     Vector2D addRandomnessToDirection(const Vector2D& direction, float randomness) const;
 public:
+    explicit MovementStrategy(std::mt19937& rng) : rng(rng) {}
     virtual MovementDecision decide(const SensoryInput& input) = 0;
     virtual ~MovementStrategy() = default;
 };
 
 class QueenMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
 
 class WorkerMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
 
 class NurseMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
 
 class ForagerMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
 
 class SoldierMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
 
 class DroneMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
 
 class DefaultMovementStrategy : public MovementStrategy {
 public:
+    using MovementStrategy::MovementStrategy;
     MovementDecision decide(const SensoryInput& input) override;
 };
