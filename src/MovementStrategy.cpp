@@ -4,6 +4,8 @@
 #include "Vector2D.h"
 #include "Position.h"
 #include "World.h"
+#include "Ant.h"
+#include "Tile.h"
 
 
 Vector2D MovementStrategy::getRandomDirection() const {
@@ -26,68 +28,67 @@ Vector2D MovementStrategy::addRandomnessToDirection(const Vector2D& direction, f
     return result.normalized();
 }
 
-Vector2D QueenMovementStrategy::getMovementDirection(Ant& ant, World& world) {
+MovementDecision QueenMovementStrategy::decide(const Ant& ant, World& world) {
     const auto antPosition = ant.getPosition();
     if (world.distanceToNest(antPosition) > 0.5) {
-        return directionTowards(antPosition, world.getNestEntrancePosition());
+        return { directionTowards(antPosition, world.getNestEntrancePosition()), {} };
     }
-    return getRandomDirection() * 0.1f;
+    return { getRandomDirection() * 0.1f, {} };
 }
 
-// WorkerMovementStrategy implementation
-Vector2D WorkerMovementStrategy::getMovementDirection(Ant& ant, World& world) {
-    return addRandomnessToDirection(ant.getLastDirection(), 0.2f);
+MovementDecision WorkerMovementStrategy::decide(const Ant& ant, World& world) {
+    return { addRandomnessToDirection(ant.getLastDirection(), 0.2f), {} };
 }
 
-// NurseMovementStrategy implementation
-Vector2D NurseMovementStrategy::getMovementDirection(Ant& ant, World& world) {
-    return addRandomnessToDirection(ant.getLastDirection(), 0.5f);
+MovementDecision NurseMovementStrategy::decide(const Ant& ant, World& world) {
+    return { addRandomnessToDirection(ant.getLastDirection(), 0.5f), {} };
 }
 
-// ForagerMovementStrategy implementation
-Vector2D ForagerMovementStrategy::getMovementDirection(Ant& ant, World& world) {
+MovementDecision ForagerMovementStrategy::decide(const Ant& ant, World& world) {
+    MovementDecision decision;
     const auto antPosition = ant.getPosition();
     const auto tile = world.getTile(antPosition);
-    const auto isNest = tile->getIsNestEntrance();
-    if (tile->getHasFood()
-        && ant.getCurrentLoad() < ant.getMaxLoad()
-        && !isNest
-    ) {
-        float amountToPickUp = ant.getMaxLoad() - ant.getCurrentLoad();
-        if (ant.pickUpItem(ItemType::FOOD, amountToPickUp)) {
-            if (tile->getHasFood()) {
-                ant.startPheromone("Found food", world);
-            } else {
-                ant.stopPheromone("Found food");
-            }
+    const bool isNest = tile->getIsNestEntrance();
+
+    // Track current load symbolically so the return-to-nest decision reflects
+    // the pickup we're about to emit this tick.
+    float projectedLoad = ant.getCurrentLoad();
+    const float maxLoad = ant.getMaxLoad();
+
+    if (tile->getHasFood() && projectedLoad < maxLoad && !isNest) {
+        const float amountToPickUp = maxLoad - projectedLoad;
+        decision.actions.push_back(movement_actions::PickUpItem{ItemType::FOOD, amountToPickUp});
+        projectedLoad += amountToPickUp;
+        // Preserves prior behavior: pickUpItem doesn't mutate tile food state,
+        // so this branch is evaluated against the pre-pickup tile.
+        if (tile->getHasFood()) {
+            decision.actions.push_back(movement_actions::StartPheromone{"Found food"});
+        } else {
+            decision.actions.push_back(movement_actions::StopPheromone{"Found food"});
         }
     }
-    
-    // Determine if forager should return to nest
-    bool shouldReturnToNest = ant.getCurrentLoad() >= ant.getMaxLoad();
-    
-    // Update movement strategy based on carrying status
+
+    const bool shouldReturnToNest = projectedLoad >= maxLoad;
     if (shouldReturnToNest) {
         if (isNest) {
-            ant.dropItem(ItemType::FOOD);
+            decision.actions.push_back(movement_actions::DropItem{ItemType::FOOD});
         } else {
-            ant.setDestination(world.getNestEntrancePosition());
+            decision.actions.push_back(movement_actions::SetDestination{world.getNestEntrancePosition()});
         }
     }
-    return addRandomnessToDirection(ant.getLastDirection(), ant.getWanderRandomness());
+
+    decision.direction = addRandomnessToDirection(ant.getLastDirection(), ant.getWanderRandomness());
+    return decision;
 }
 
-// SoldierMovementStrategy implementation
-Vector2D SoldierMovementStrategy::getMovementDirection(Ant& ant, World& world) {
-    return addRandomnessToDirection(ant.getLastDirection(), 0.4f);
+MovementDecision SoldierMovementStrategy::decide(const Ant& ant, World& world) {
+    return { addRandomnessToDirection(ant.getLastDirection(), 0.4f), {} };
 }
 
-// DroneMovementStrategy implementation
-Vector2D DroneMovementStrategy::getMovementDirection(Ant& ant, World& world) {
-    return addRandomnessToDirection(ant.getLastDirection(), 0.1f);
+MovementDecision DroneMovementStrategy::decide(const Ant& ant, World& world) {
+    return { addRandomnessToDirection(ant.getLastDirection(), 0.1f), {} };
 }
 
-// DefaultMovementStrategy implementation
-Vector2D DefaultMovementStrategy::getMovementDirection(Ant& ant, World& world) {
-    return getRandomDirection();
+MovementDecision DefaultMovementStrategy::decide(const Ant& ant, World& world) {
+    return { getRandomDirection(), {} };
 }

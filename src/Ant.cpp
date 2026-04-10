@@ -189,10 +189,27 @@ const std::unordered_map<ItemType, float>& Ant::getCarriedItems() const {
 }
 
 void Ant::update(World& world) {
-    Vector2D moveDirection = movementStrategy->getMovementDirection(*this, world);
-    move(moveDirection, world);
-    
-    lastDirection = moveDirection;
+    MovementDecision decision = movementStrategy->decide(*this, world);
+
+    for (const auto& action : decision.actions) {
+        std::visit([this, &world](const auto& a) {
+            using T = std::decay_t<decltype(a)>;
+            if constexpr (std::is_same_v<T, movement_actions::PickUpItem>) {
+                this->pickUpItem(a.itemType, a.amount);
+            } else if constexpr (std::is_same_v<T, movement_actions::DropItem>) {
+                this->dropItem(a.itemType);
+            } else if constexpr (std::is_same_v<T, movement_actions::StartPheromone>) {
+                this->startPheromone(a.message, world);
+            } else if constexpr (std::is_same_v<T, movement_actions::StopPheromone>) {
+                this->stopPheromone(a.message);
+            } else if constexpr (std::is_same_v<T, movement_actions::SetDestination>) {
+                this->setDestination(a.destination);
+            }
+        }, action);
+    }
+
+    move(decision.direction, world);
+    lastDirection = decision.direction;
 }
 
 void Ant::move(const Vector2D& direction, World& world) {
