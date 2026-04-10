@@ -5,6 +5,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include "Pheromone.h"
 #include "Position.h"
 #include "Vector2D.h"
 #include "Ant.h"
@@ -15,18 +16,16 @@ class World;
 struct Vector2D;
 
 namespace movement_actions {
-    struct PickUpItem    { ItemType itemType; float amount; };
-    struct DropItem      { std::optional<ItemType> itemType; };
-    struct StartPheromone { std::string message; };
-    struct StopPheromone  { std::string message; };
-    struct SetDestination { FloatPosition destination; };
+    struct PickUpItem       { ItemType itemType; float amount; };
+    struct DropItem         { std::optional<ItemType> itemType; };
+    struct DepositPheromone { PheromoneType type; float amount; };
+    struct SetDestination   { FloatPosition destination; };
 }
 
 using MovementAction = std::variant<
     movement_actions::PickUpItem,
     movement_actions::DropItem,
-    movement_actions::StartPheromone,
-    movement_actions::StopPheromone,
+    movement_actions::DepositPheromone,
     movement_actions::SetDestination
 >;
 
@@ -49,6 +48,10 @@ struct SensoryInput {
     // Immediate tile under the ant
     bool onFood;
     bool onNestEntrance;
+
+    // Pheromones sensed at the current tile + gradient from neighbouring tiles
+    float foodTrailHere;
+    Vector2D foodTrailGradient;
 
     // Nest-relative
     float distanceToNest;

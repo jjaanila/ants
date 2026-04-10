@@ -45,11 +45,13 @@ MovementDecision ForagerMovementStrategy::decide(const SensoryInput& input) {
     if (input.onFood && projectedLoad < input.maxLoad && !input.onNestEntrance) {
         const float amountToPickUp = input.maxLoad - projectedLoad;
         decision.actions.push_back(movement_actions::PickUpItem{ItemType::FOOD, amountToPickUp});
-        decision.actions.push_back(movement_actions::StartPheromone{"Found food"});
         projectedLoad += amountToPickUp;
     }
 
-    if (projectedLoad >= input.maxLoad) {
+    const bool carrying = projectedLoad >= input.maxLoad;
+    if (carrying) {
+        // Laying a trail back to the nest while returning.
+        decision.actions.push_back(movement_actions::DepositPheromone{PheromoneType::FoodTrail, 8.0f});
         if (input.onNestEntrance) {
             decision.actions.push_back(movement_actions::DropItem{ItemType::FOOD});
         } else {
@@ -57,7 +59,12 @@ MovementDecision ForagerMovementStrategy::decide(const SensoryInput& input) {
         }
     }
 
-    decision.direction = addRandomnessToDirection(input.lastDirection, input.wanderRandomness);
+    Vector2D baseDirection = input.lastDirection;
+    if (!carrying && input.foodTrailGradient.magnitude() > 0.001f) {
+        // Follow the strongest scent; wander still mixes in via the randomness pass.
+        baseDirection = input.foodTrailGradient;
+    }
+    decision.direction = addRandomnessToDirection(baseDirection, input.wanderRandomness);
     return decision;
 }
 

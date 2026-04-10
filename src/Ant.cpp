@@ -193,6 +193,22 @@ void Ant::update(World& world) {
     const auto currentPosition = getPosition();
     const auto tile = world.getTile(currentPosition);
 
+    const IntegerPosition tilePos = tile->getPosition();
+    auto trailAt = [&world](int x, int y) {
+        const Tile* t = world.getTile(IntegerPosition(x, y));
+        return t ? t->getPheromone(PheromoneType::FoodTrail) : 0.0f;
+    };
+    const float trailE = trailAt(tilePos.getX() + 1, tilePos.getY());
+    const float trailW = trailAt(tilePos.getX() - 1, tilePos.getY());
+    const float trailS = trailAt(tilePos.getX(), tilePos.getY() + 1);
+    const float trailN = trailAt(tilePos.getX(), tilePos.getY() - 1);
+    Vector2D gradient(trailE - trailW, trailS - trailN);
+    if (gradient.magnitude() > 0.001f) {
+        gradient = gradient.normalized();
+    } else {
+        gradient = Vector2D(0.0f, 0.0f);
+    }
+
     const SensoryInput input{
         .position = currentPosition,
         .lastDirection = lastDirection,
@@ -201,6 +217,8 @@ void Ant::update(World& world) {
         .wanderRandomness = wanderRandomness,
         .onFood = tile->getHasFood(),
         .onNestEntrance = tile->getIsNestEntrance(),
+        .foodTrailHere = tile->getPheromone(PheromoneType::FoodTrail),
+        .foodTrailGradient = gradient,
         .distanceToNest = world.distanceToNest(currentPosition),
         .nestEntrancePosition = world.getNestEntrancePosition(),
     };
@@ -208,16 +226,14 @@ void Ant::update(World& world) {
     MovementDecision decision = movementStrategy->decide(input);
 
     for (const auto& action : decision.actions) {
-        std::visit([this, &world](const auto& a) {
+        std::visit([this, &world, &tilePos](const auto& a) {
             using T = std::decay_t<decltype(a)>;
             if constexpr (std::is_same_v<T, movement_actions::PickUpItem>) {
                 this->pickUpItem(a.itemType, a.amount);
             } else if constexpr (std::is_same_v<T, movement_actions::DropItem>) {
                 this->dropItem(a.itemType);
-            } else if constexpr (std::is_same_v<T, movement_actions::StartPheromone>) {
-                this->startPheromone(a.message, world);
-            } else if constexpr (std::is_same_v<T, movement_actions::StopPheromone>) {
-                this->stopPheromone(a.message);
+            } else if constexpr (std::is_same_v<T, movement_actions::DepositPheromone>) {
+                world.depositPheromone(tilePos, a.type, a.amount);
             } else if constexpr (std::is_same_v<T, movement_actions::SetDestination>) {
                 this->setDestination(a.destination);
             }
@@ -339,15 +355,6 @@ void Ant::dropItem(std::optional<ItemType> itemType) {
                       + itemTypeToString(itemType.value()));
         }
     }
-}
-
-void Ant::startPheromone(const std::string& message, World& world) {
-    releasingPheromone = message;
-    world.addPheromone(IntegerPosition(*position), releasingPheromone.value());
-}
-
-void Ant::stopPheromone(const std::string& message) {
-    releasingPheromone = std::nullopt;
 }
 
 void Ant::rest(int minutes) {

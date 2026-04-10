@@ -147,18 +147,54 @@ std::vector<IntegerPosition> World::getAdjacentPositions(const IntegerPosition& 
     return adjacentPositions;
 }
 
-void World::addPheromone(const IntegerPosition& pos, const std::string& message, int strength) {
+void World::depositPheromone(const IntegerPosition& pos, PheromoneType type, float amount) {
     if (isValidPosition(pos)) {
-        getTile(pos)->addPheromone(message, strength);
+        getTile(pos)->depositPheromone(type, amount);
     }
 }
 
 void World::updatePheromones() {
-    forEachTile([](Tile* tile) {
-        if (tile->getHasPheromone()) {
-            tile->decreasePheromoneStrength();
+    // Double-buffered diffusion + decay. For each tile, the next value is a
+    // blend of the tile's current value and the average of its 4-neighbours,
+    // then multiplied by a decay factor. Values below a floor snap to zero so
+    // faint trails don't linger indefinitely.
+    static constexpr float kSelfWeight = 0.80f;
+    static constexpr float kNeighborWeight = 1.0f - kSelfWeight;
+    static constexpr float kDecay = 0.95f;
+    static constexpr float kFloor = 0.05f;
+
+    std::unordered_map<IntegerPosition, std::array<float, kPheromoneTypeCount>> next;
+    next.reserve(tiles.size());
+
+    for (const auto& [pos, tilePtr] : tiles) {
+        std::array<float, kPheromoneTypeCount> values{};
+        for (std::size_t t = 0; t < kPheromoneTypeCount; ++t) {
+            const auto type = static_cast<PheromoneType>(t);
+            const float self = tilePtr->getPheromone(type);
+
+            float neighborSum = 0.0f;
+            int neighborCount = 0;
+            for (const auto& adj : getAdjacentPositions(pos)) {
+                if (const Tile* adjTile = getTile(adj)) {
+                    neighborSum += adjTile->getPheromone(type);
+                    ++neighborCount;
+                }
+            }
+            const float neighborAvg = neighborCount > 0 ? neighborSum / neighborCount : 0.0f;
+
+            float blended = (self * kSelfWeight + neighborAvg * kNeighborWeight) * kDecay;
+            if (blended < kFloor) blended = 0.0f;
+            values[t] = blended;
         }
-    });
+        next[pos] = values;
+    }
+
+    for (auto& [pos, tilePtr] : tiles) {
+        const auto& values = next[pos];
+        for (std::size_t t = 0; t < kPheromoneTypeCount; ++t) {
+            tilePtr->setPheromone(static_cast<PheromoneType>(t), values[t]);
+        }
+    }
 }
 
 void World::updateAnts() {
@@ -169,6 +205,7 @@ void World::updateAnts() {
 
 void World::update() {
     updateAnts();
+    updatePheromones();
 }
 
 void World::placeFood(const IntegerPosition& pos, float amount) {

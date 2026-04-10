@@ -58,7 +58,6 @@ private:
     const std::unordered_map<ItemType, float>& getCarriedItems() const;
     std::optional<FloatPosition> destination = std::nullopt;
     bool hasReachedDestination = false;
-    std::optional<std::string> releasingPheromone = std::nullopt;
 
 public:
     Ant(AntRole role, int id, std::mt19937& rng);
@@ -93,8 +92,6 @@ public:
     void eatFood(const std::string& foodType, float amount);
     bool pickUpItem(ItemType itemType, float amount);
     void dropItem(std::optional<ItemType> itemType = std::nullopt);
-    void startPheromone(const std::string& message, World& world);
-    void stopPheromone(const std::string& message);
     void defend();  // Primarily for soldiers
     void buildNest();  // Primarily for workers
     void layEggs(int count);  // Only for queens

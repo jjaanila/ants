@@ -92,6 +92,18 @@ void Visualizer::drawTile(const Tile* tile) {
 void Visualizer::drawTerrain(World& world) {
     world.forEachTile([this](Tile* tile) {
         drawTile(tile);
+
+        const float foodTrail = tile->getPheromone(PheromoneType::FoodTrail);
+        if (foodTrail > 0.0f) {
+            const auto pos = tile->getPosition();
+            const float tileSize = scaleToScreen(1);
+            sf::RectangleShape overlay(sf::Vector2f(tileSize, tileSize));
+            overlay.setPosition({toScreenCoordinate(pos.getX()), toScreenCoordinate(pos.getY())});
+            const int alpha = std::min(200, static_cast<int>(foodTrail * 6.0f));
+            overlay.setFillColor(sf::Color(80, 180, 255, alpha));
+            window.draw(overlay);
+        }
+
         if (tile->getHasFood()) {
             drawFood(tile->getPosition(), tile->getFoodAmount());
         }

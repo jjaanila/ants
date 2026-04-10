@@ -1,15 +1,12 @@
-#include <iostream>
-#include <random>
+#include <algorithm>
 
 #include "Tile.h"
 
-Tile::Tile(IntegerPosition pos, TerrainType terrain) 
-    : position(pos), 
-      terrain(terrain), 
-      hasFood(false), 
-      foodAmount(0.0), 
-      hasPheromone(false), 
-      pheromoneStrength(0), 
+Tile::Tile(IntegerPosition pos, TerrainType terrain)
+    : position(pos),
+      terrain(terrain),
+      hasFood(false),
+      foodAmount(0.0),
       isNestEntrance(false) {
 }
 
@@ -29,16 +26,15 @@ float Tile::getFoodAmount() const {
     return foodAmount;
 }
 
-bool Tile::getHasPheromone() const {
-    return hasPheromone;
+float Tile::getPheromone(PheromoneType type) const {
+    return pheromones[static_cast<std::size_t>(type)];
 }
 
-std::string Tile::getPheromoneMessage() const {
-    return pheromoneMessage;
-}
-
-int Tile::getPheromoneStrength() const {
-    return pheromoneStrength;
+bool Tile::hasAnyPheromone() const {
+    for (float value : pheromones) {
+        if (value > 0.0f) return true;
+    }
+    return false;
 }
 
 bool Tile::getIsNestEntrance() const {
@@ -66,18 +62,12 @@ void Tile::removeFood(float amount) {
     }
 }
 
-void Tile::addPheromone(const std::string& message, int strength) {
-    pheromoneMessage = message;
-    pheromoneStrength = strength;
-    hasPheromone = true;
+void Tile::depositPheromone(PheromoneType type, float amount) {
+    pheromones[static_cast<std::size_t>(type)] += amount;
 }
 
-void Tile::decreasePheromoneStrength(int amount) {
-    pheromoneStrength -= amount;
-    if (pheromoneStrength <= 0) {
-        pheromoneStrength = 0;
-        hasPheromone = false;
-    }
+void Tile::setPheromone(PheromoneType type, float value) {
+    pheromones[static_cast<std::size_t>(type)] = value;
 }
 
 void Tile::setNestEntrance(bool isEntrance) {
@@ -105,32 +95,29 @@ int Tile::getAntCount() const {
 
 std::string Tile::getDescription() const {
     std::string desc = "Tile at " + position.toString() + " - ";
-    
-    // Terrain type
+
     switch (terrain) {
         case TerrainType::SOIL: desc += "Soil"; break;
         case TerrainType::SAND: desc += "Sand"; break;
         case TerrainType::ROCK: desc += "Rock"; break;
         case TerrainType::GRASS: desc += "Grass"; break;
     }
-    
-    // Additional information
+
     if (isNestEntrance) {
         desc += " (Nest Entrance)";
     }
-    
+
     if (hasFood) {
         desc += ", Food: " + std::to_string(foodAmount);
     }
-    
-    if (hasPheromone) {
-        desc += ", Pheromone: \"" + pheromoneMessage + "\" (Strength: " 
-               + std::to_string(pheromoneStrength) + ")";
+
+    if (hasAnyPheromone()) {
+        desc += ", FoodTrail: " + std::to_string(getPheromone(PheromoneType::FoodTrail));
     }
-    
+
     if (hasAnts()) {
         desc += ", Ants: " + std::to_string(ants.size());
     }
-    
+
     return desc;
 }

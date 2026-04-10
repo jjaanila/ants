@@ -9,6 +9,7 @@
 #include <functional>
 #include "Ant.h"
 #include "Id.h"
+#include "Pheromone.h"
 #include "Position.h"
 #include "Tile.h"
 
@@ -65,7 +66,7 @@ public:
     std::vector<IntegerPosition> getAdjacentPositions(const IntegerPosition& pos);
     
     // World interactions
-    void addPheromone(const IntegerPosition& pos, const std::string& message, int strength = 10);
+    void depositPheromone(const IntegerPosition& pos, PheromoneType type, float amount);
     void updatePheromones();
     void spawnFood(int count);
     void update();
