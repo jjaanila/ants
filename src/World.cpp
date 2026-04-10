@@ -1,7 +1,4 @@
-#include <iostream>
 #include <random>
-#include <queue>
-#include <unordered_set>
 #include "Tile.h"
 #include "World.h"
 
@@ -9,9 +6,16 @@
 World::World(unsigned int width, unsigned int height, const unsigned int initial_colony_size,
              std::optional<unsigned int> seed)
     :
+    pheromoneScratch(static_cast<std::size_t>(width) * height),
     rng(seed.value_or(std::random_device{}())),
     width(width),
     height(height) {
+    tiles.reserve(static_cast<std::size_t>(width) * height);
+    for (unsigned int y = 0; y < height; ++y) {
+        for (unsigned int x = 0; x < width; ++x) {
+            tiles.emplace_back(IntegerPosition(x, y), TerrainType::SOIL);
+        }
+    }
     initialize(initial_colony_size);
 }
 
@@ -22,13 +26,6 @@ std::shared_ptr<Ant> World::createAnt(AntRole role, const IntegerPosition& pos) 
 }
 
 void World::initialize(const unsigned int initial_colony_size) {
-    for (unsigned int x = 0; x < width; x++) {
-        for (unsigned int y = 0; y < height; y++) {
-            IntegerPosition pos(x, y);
-            tiles[pos] = std::make_unique<Tile>(pos, TerrainType::SOIL);
-        }
-    }
-
     generateTerrain();
 
     placeNest(IntegerPosition(width / 2, height / 2));
@@ -98,19 +95,17 @@ float World::distanceToNest(const FloatPosition& pos) const {
     return pos.distanceTo(getNestEntrancePosition());
 }
 
+Tile* World::getTile(int x, int y) {
+    if (!isValidPosition(x, y)) return nullptr;
+    return &tiles[tileIndex(x, y)];
+}
+
 Tile* World::getTile(const IntegerPosition& pos) {
-    if (isValidPosition(pos)) {
-        return tiles[pos].get();
-    }
-    return nullptr;
+    return getTile(static_cast<int>(pos.getX()), static_cast<int>(pos.getY()));
 }
 
 Tile* World::getTile(const FloatPosition& pos) {
     return getTile(pos.toIntegerPosition());
-}
-
-Tile* World::getTile(int x, int y) {
-    return getTile(IntegerPosition(x, y));
 }
 
 const std::vector<std::shared_ptr<Ant>>& World::getAnts() const {
@@ -157,42 +152,41 @@ void World::updatePheromones() {
     // Double-buffered diffusion + decay. For each tile, the next value is a
     // blend of the tile's current value and the average of its 4-neighbours,
     // then multiplied by a decay factor. Values below a floor snap to zero so
-    // faint trails don't linger indefinitely.
+    // faint trails don't linger indefinitely. The scratch buffer lives on the
+    // World so no per-tick allocation happens.
     static constexpr float kSelfWeight = 0.80f;
     static constexpr float kNeighborWeight = 1.0f - kSelfWeight;
     static constexpr float kDecay = 0.95f;
     static constexpr float kFloor = 0.05f;
 
-    std::unordered_map<IntegerPosition, std::array<float, kPheromoneTypeCount>> next;
-    next.reserve(tiles.size());
+    const int w = static_cast<int>(width);
+    const int h = static_cast<int>(height);
 
-    for (const auto& [pos, tilePtr] : tiles) {
-        std::array<float, kPheromoneTypeCount> values{};
-        for (std::size_t t = 0; t < kPheromoneTypeCount; ++t) {
-            const auto type = static_cast<PheromoneType>(t);
-            const float self = tilePtr->getPheromone(type);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const std::size_t idx = tileIndex(x, y);
+            for (std::size_t t = 0; t < kPheromoneTypeCount; ++t) {
+                const auto type = static_cast<PheromoneType>(t);
+                const float self = tiles[idx].getPheromone(type);
 
-            float neighborSum = 0.0f;
-            int neighborCount = 0;
-            for (const auto& adj : getAdjacentPositions(pos)) {
-                if (const Tile* adjTile = getTile(adj)) {
-                    neighborSum += adjTile->getPheromone(type);
-                    ++neighborCount;
-                }
+                float neighborSum = 0.0f;
+                int neighborCount = 0;
+                if (x > 0)     { neighborSum += tiles[tileIndex(x - 1, y)].getPheromone(type); ++neighborCount; }
+                if (x < w - 1) { neighborSum += tiles[tileIndex(x + 1, y)].getPheromone(type); ++neighborCount; }
+                if (y > 0)     { neighborSum += tiles[tileIndex(x, y - 1)].getPheromone(type); ++neighborCount; }
+                if (y < h - 1) { neighborSum += tiles[tileIndex(x, y + 1)].getPheromone(type); ++neighborCount; }
+                const float neighborAvg = neighborCount > 0 ? neighborSum / neighborCount : 0.0f;
+
+                float blended = (self * kSelfWeight + neighborAvg * kNeighborWeight) * kDecay;
+                if (blended < kFloor) blended = 0.0f;
+                pheromoneScratch[idx][t] = blended;
             }
-            const float neighborAvg = neighborCount > 0 ? neighborSum / neighborCount : 0.0f;
-
-            float blended = (self * kSelfWeight + neighborAvg * kNeighborWeight) * kDecay;
-            if (blended < kFloor) blended = 0.0f;
-            values[t] = blended;
         }
-        next[pos] = values;
     }
 
-    for (auto& [pos, tilePtr] : tiles) {
-        const auto& values = next[pos];
+    for (std::size_t i = 0; i < tiles.size(); ++i) {
         for (std::size_t t = 0; t < kPheromoneTypeCount; ++t) {
-            tilePtr->setPheromone(static_cast<PheromoneType>(t), values[t]);
+            tiles[i].setPheromone(static_cast<PheromoneType>(t), pheromoneScratch[i][t]);
         }
     }
 }
@@ -248,10 +242,7 @@ void World::addAnt(std::shared_ptr<Ant> ant, const IntegerPosition& pos) {
 }
 
 void World::forEachTile(std::function<void(Tile*)> callback) {
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
-            IntegerPosition pos(x, y);
-            callback(getTile(pos));
-        }
+    for (Tile& tile : tiles) {
+        callback(&tile);
     }
 }

@@ -1,11 +1,11 @@
 #pragma once
 
+#include <array>
 #include <optional>
 #include <random>
 #include <vector>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <functional>
 #include "Ant.h"
 #include "Id.h"
@@ -13,30 +13,19 @@
 #include "Position.h"
 #include "Tile.h"
 
-// Forward declarations
-class Tile;
-
-// Custom hash function for Position to use in unordered_map
-namespace std {
-    template <>
-    struct hash<IntegerPosition> {
-        std::size_t operator()(const IntegerPosition& pos) const {
-            // Simple hash combining both coordinates
-            return std::hash<int>()(pos.getX()) ^ (std::hash<int>()(pos.getY()) << 1);
-        }
-    };
-}
-
 /**
  * @brief The main world class managing all tiles and coordinates
  */
 class World {
 private:
-    std::unordered_map<IntegerPosition, std::unique_ptr<Tile>> tiles;
+    std::vector<Tile> tiles;
+    std::vector<std::array<float, kPheromoneTypeCount>> pheromoneScratch;
     std::vector<std::shared_ptr<Ant>> ants;
     std::unique_ptr<IntegerPosition> nestEntrancePosition;
     std::mt19937 rng;
     UniqueIdGenerator idGenerator;
+
+    std::size_t tileIndex(int x, int y) const { return static_cast<std::size_t>(y) * width + x; }
 
     void updateAnts();
     std::shared_ptr<Ant> createAnt(AntRole role, const IntegerPosition& pos);
