@@ -1,192 +1,97 @@
-// Ant.cpp
 #include "Ant.h"
 #include "MovementStrategy.h"
 #include "Position.h"
 #include "Tile.h"
 #include "World.h"
-#include <iostream>
-#include <cmath>
-#include <random>
-#include <string>
-#include <SFML/Graphics.hpp>
 
-std::string itemTypeToString(ItemType type) {
-    switch (type) {
-        case ItemType::FOOD: return "food";
-        case ItemType::LARVA: return "larva";
-        case ItemType::EGG: return "egg";
-        default: return "unknown item";
+#include <algorithm>
+#include <type_traits>
+#include <variant>
+
+namespace {
+
+struct AntRoleConfig {
+    sf::Color color;
+    float size;
+    float movementSpeed;
+    float maxLoad;
+};
+
+constexpr float kBaseSize = 0.5f;
+constexpr float kBaseMovementSpeed = 1.0f;
+
+AntRoleConfig configForRole(AntRole role) {
+    switch (role) {
+        case AntRole::QUEEN:
+            return { sf::Color::Yellow, kBaseSize * 2.0f, kBaseMovementSpeed, 0.0f };
+        case AntRole::WORKER:
+            return { sf::Color::Black, kBaseSize, kBaseMovementSpeed, kBaseSize * 2.0f };
+        case AntRole::SOLDIER:
+            return { sf::Color::Red, kBaseSize * 1.3f, kBaseMovementSpeed * 1.5f, 0.0f };
+        case AntRole::DRONE:
+            return { sf::Color::Cyan, kBaseSize, kBaseMovementSpeed, 0.0f };
+        case AntRole::FORAGER:
+            return { sf::Color::Blue, kBaseSize, kBaseMovementSpeed, kBaseSize * 1.5f };
+        case AntRole::NURSE:
+            return { sf::Color::Green, kBaseSize, kBaseMovementSpeed, 0.0f };
     }
+    return { sf::Color::White, kBaseSize, kBaseMovementSpeed, 0.0f };
 }
+
+std::unique_ptr<MovementStrategy> makeStrategyFor(AntRole role, std::mt19937& rng) {
+    switch (role) {
+        case AntRole::QUEEN:   return std::make_unique<QueenMovementStrategy>(rng);
+        case AntRole::WORKER:  return std::make_unique<WorkerMovementStrategy>(rng);
+        case AntRole::SOLDIER: return std::make_unique<SoldierMovementStrategy>(rng);
+        case AntRole::DRONE:   return std::make_unique<DroneMovementStrategy>(rng);
+        case AntRole::FORAGER: return std::make_unique<ForagerMovementStrategy>(rng);
+        case AntRole::NURSE:   return std::make_unique<NurseMovementStrategy>(rng);
+    }
+    return std::make_unique<DefaultMovementStrategy>(rng);
+}
+
+} // namespace
 
 Ant::Ant(AntRole role, int id, std::mt19937& rng)
     : rng(rng),
       id(id),
       role(role),
-      hasWings(role == AntRole::QUEEN || role == AntRole::DRONE),
-      age(0),
-      energy(100.0),
-      movementSpeed(0.0),
-      eggLayingRate(0),
-      attackPower(0.0),
-      maxLoad(0.0),
-      nursingEfficiency(0.0),
       lastDirection(0.0f, 0.0f)
 {
-    foodPreferences = {"sugar", "protein", "seeds"};
-    initializeRoleAttributes();
+    const auto config = configForRole(role);
+    size = config.size;
+    color = config.color;
+    movementSpeed = config.movementSpeed;
+    maxLoad = config.maxLoad;
+    movementStrategy = makeStrategyFor(role, rng);
 }
 
-void Ant::initializeRoleAttributes() {
-    weight = size / 2.0;
-    const float baseSize = 0.5;
-    const float baseMovementSpeed = 1;
-    switch (role) {
-        case AntRole::QUEEN:
-            color = sf::Color::Yellow;
-            size = baseSize * 2;  // Queens are larger
-            lifespan = 365 * 15;  // Queens can live for years
-            eggLayingRate = 1000; // Eggs per day
-            hasWings = true;      // Queens start with wings but lose them
-            movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<QueenMovementStrategy>(rng);
-            break;
-            
-        case AntRole::WORKER:
-            color = sf::Color::Black;
-            size = baseSize;
-            lifespan = 365;  // ~1 year
-            maxLoad = size * 2.0;
-            movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<WorkerMovementStrategy>(rng);
-            break;
-            
-        case AntRole::SOLDIER:
-            color = sf::Color::Red;
-            size = baseSize * 1.3;  // Soldiers are larger than workers
-            lifespan = 365;
-            attackPower = size * 3.0;
-            movementSpeed = baseMovementSpeed * 1.5;
-            movementStrategy = std::make_unique<SoldierMovementStrategy>(rng);
-            break;
-            
-        case AntRole::DRONE:
-            color = sf::Color::Cyan;
-            size = baseSize;
-            lifespan = 90;  // Shorter lifespan
-            hasWings = true;
-            movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<DroneMovementStrategy>(rng);
-            break;
-            
-        case AntRole::FORAGER:
-            color = sf::Color::Blue;
-            size = baseSize;
-            lifespan = 180;
-            maxLoad = size * 1.5;
-            movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<ForagerMovementStrategy>(rng);
-            break;
-            
-        case AntRole::NURSE:
-            color = sf::Color::Green;
-            size = baseSize;
-            lifespan = 365;
-            nursingEfficiency = 10.0;
-            movementSpeed = baseMovementSpeed;
-            movementStrategy = std::make_unique<NurseMovementStrategy>(rng);
-            break;
-    }
-}
+Ant::~Ant() = default;
 
-Ant::~Ant() {
+AntRole Ant::getRole() const { return role; }
+float Ant::getSize() const { return size; }
+sf::Color Ant::getColor() const { return color; }
+Vector2D Ant::getLastDirection() const { return lastDirection; }
+float Ant::getWanderRandomness() const { return wanderRandomness; }
+float Ant::getMaxLoad() const { return maxLoad; }
+
+FloatPosition Ant::getPosition() const { return *position; }
+void Ant::setPosition(FloatPosition newPosition) {
+    position = std::make_unique<FloatPosition>(newPosition);
 }
+FloatPosition Ant::getPreviousPosition() const { return *previousPosition; }
 
 void Ant::setDestination(const FloatPosition& dest) {
     destination = dest;
     hasReachedDestination = false;
 }
 
-void Ant::clearDestination() {
-    destination = std::nullopt;
-    hasReachedDestination = false;
-}
-
-bool Ant::hasDestination() const {
-    return destination.has_value();
-}
-
-bool Ant::isAtDestination() const {
-    return hasReachedDestination;
-}
-
-// Role-related methods
-AntRole Ant::getRole() const { return role; }
-
-void Ant::setRole(AntRole newRole) { 
-    role = newRole;
-    updateAttributesBasedOnRole();
-}
-
-FloatPosition Ant::getPreviousPosition() const {
-    return *previousPosition;
-}
-
-void Ant::updateAttributesBasedOnRole() {
-    eggLayingRate = 0;
-    attackPower = 0.0;
-    maxLoad = 10;
-    nursingEfficiency = 0.0;
-    initializeRoleAttributes();
-}
-
-std::string Ant::getName() const {
-    return "Ant " + std::to_string(id) + " (" + getRoleName() + ") ";
-}
-
-std::string Ant::getRoleName() const {
-    switch (role) {
-        case AntRole::QUEEN: return "Queen";
-        case AntRole::WORKER: return "Worker";
-        case AntRole::SOLDIER: return "Soldier";
-        case AntRole::DRONE: return "Drone";
-        case AntRole::FORAGER: return "Forager";
-        case AntRole::NURSE: return "Nurse";
-        default: return "Unknown";
-    }
-}
-
-void Ant::log(const std::string& message) const {
-    std::cout << getName() << message << std::endl;
-}
-
-// Getters and setters implementations
-float Ant::getSize() const { return size; }
-void Ant::setSize(float size) { this->size = size; }
-
-sf::Color Ant::getColor() const { return color; }
-void Ant::setColor(const sf::Color& color) { this->color = color; }
-
-bool Ant::getHasWings() const { return hasWings; }
-void Ant::setHasWings(bool hasWings) { this->hasWings = hasWings; }
-
-float Ant::getWanderRandomness() const { return wanderRandomness; }
-Vector2D Ant::getLastDirection() const { return lastDirection; }
-
 float Ant::getCurrentLoad() const {
-    float totalLoad = 0.0f;
+    float total = 0.0f;
     for (const auto& item : carriedItems) {
-        totalLoad += item.second;
+        total += item.second;
     }
-    return totalLoad;
-}
-
-float Ant::getMaxLoad() const {
-    return maxLoad;
-}
-
-const std::unordered_map<ItemType, float>& Ant::getCarriedItems() const {
-    return carriedItems;
+    return total;
 }
 
 void Ant::update(World& world) {
@@ -245,53 +150,38 @@ void Ant::update(World& world) {
 }
 
 void Ant::move(const Vector2D& direction, World& world) {
-    // If we have a destination, move toward it instead of using the provided direction
     if (destination.has_value() && !hasReachedDestination) {
         const FloatPosition& dest = destination.value();
-        
-        // Calculate distance to destination
-        float distanceToDestination = position->distanceTo(dest);
-        
-        // If we're close enough, consider it reached
+        const float distanceToDestination = position->distanceTo(dest);
+
         if (distanceToDestination <= movementSpeed) {
-            // Set position directly to destination to avoid overshooting
             previousPosition = std::make_unique<FloatPosition>(*position);
             position = std::make_unique<FloatPosition>(dest);
             hasReachedDestination = true;
             return;
         }
-        
-        // Not close enough yet, calculate direction to destination
-        Vector2D directionToDestination = Vector2D(
+
+        const Vector2D directionToDestination = Vector2D(
             dest.getX() - position->getX(),
             dest.getY() - position->getY()
         ).normalized();
-        
-        // Calculate new position based on direction to destination
-        FloatPosition newPosition = *position + directionToDestination * movementSpeed;
-        
-        // Check if valid and move
+
+        const FloatPosition newPosition = *position + directionToDestination * movementSpeed;
         if (world.isValidPosition(newPosition)) {
             wanderRandomness = initialWanderRandomness;
             previousPosition = std::make_unique<FloatPosition>(*position);
             position = std::make_unique<FloatPosition>(newPosition);
         } else {
-            // Hit obstacle, increase randomness for next move
             wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
             previousPosition = std::make_unique<FloatPosition>(*position);
-            
-            // Optionally, add some random deviation to try to get around obstacles
-            // This could be part of a more sophisticated pathfinding approach
         }
     } else {
-        // No destination or already reached destination, use the provided direction
-        FloatPosition newPosition = *position + direction * movementSpeed;
+        const FloatPosition newPosition = *position + direction * movementSpeed;
         if (world.isValidPosition(newPosition)) {
             wanderRandomness = initialWanderRandomness;
             previousPosition = std::make_unique<FloatPosition>(*position);
             position = std::make_unique<FloatPosition>(newPosition);
         } else {
-            // Hit obstacle, increase randomness for next move
             wanderRandomness = std::min(wanderRandomness + 0.1f, 1.0f);
             previousPosition = std::make_unique<FloatPosition>(*position);
         }
@@ -299,175 +189,21 @@ void Ant::move(const Vector2D& direction, World& world) {
 }
 
 bool Ant::pickUpItem(ItemType itemType, float amount) {
-    // Only certain roles can carry items
-    if (role != AntRole::WORKER && role != AntRole::FORAGER) {
-        log("ants can't carry items!");
-        return false;
-    }
-    
-    // Calculate total weight currently carried
-    float currentLoad = getCurrentLoad();
-    
-    // Check if adding this item would exceed carry capacity
-    if (currentLoad + amount > maxLoad) {
-        // Can't carry full amount, see if we can carry partial
-        float remainingCapacity = maxLoad - currentLoad;
-        
-        if (remainingCapacity <= 0) {
-            log("is already at maximum carrying capacity!");
-            return false;
-        }
-        
-        // Pick up partial amount
-        float partialAmount = remainingCapacity;
-        log("picked up " + std::to_string(partialAmount) + " of " 
-                  + itemTypeToString(itemType) + " (at max capacity)");
-        
-        // Add to carried items or increase amount if already carrying this type
-        carriedItems[itemType] += partialAmount;
-        
-        return true;  // Partial success
-    }
-    
-    // Can carry full amount
-    log("picked up " + std::to_string(amount) + " of " + itemTypeToString(itemType));
-    
-    // Add to carried items or increase amount if already carrying this type
-    carriedItems[itemType] += amount;
-    
+    if (role != AntRole::WORKER && role != AntRole::FORAGER) return false;
+
+    const float currentLoad = getCurrentLoad();
+    if (currentLoad >= maxLoad) return false;
+
+    const float remainingCapacity = maxLoad - currentLoad;
+    const float taken = std::min(amount, remainingCapacity);
+    carriedItems[itemType] += taken;
     return true;
 }
 
 void Ant::dropItem(std::optional<ItemType> itemType) {
     if (!itemType.has_value()) {
-        // Drop all items
-        log("dropped all carried items.");
         carriedItems.clear();
     } else {
-        // Drop specific item type
-        auto it = carriedItems.find(itemType.value());
-        if (it != carriedItems.end()) {
-            log("dropped " + std::to_string(it->second) + " of " 
-                      + itemTypeToString(itemType.value()));
-            carriedItems.erase(it);
-        } else {
-            log("is not carrying any " 
-                      + itemTypeToString(itemType.value()));
-        }
-    }
-}
-
-void Ant::rest(int minutes) {
-    log("is resting for " + std::to_string(minutes) + " minutes.");
-    float recoveryRate = (role == AntRole::QUEEN) ? 1.0 : 0.5;
-}
-
-void Ant::defend() {
-    if (role != AntRole::SOLDIER && role != AntRole::WORKER) {
-        log(getRoleName() + " ants don't typically defend the colony!");
-        return;
-    }
-    
-    if (role == AntRole::SOLDIER) {
-        log("Soldier ant is attacking with power level " + std::to_string(attackPower) + "!");
-    } else {
-        log("Worker ant is defending the colony!");
-    }
-}
-
-void Ant::buildNest() {
-    if (role != AntRole::WORKER) {
-        log(getRoleName() + " ants don't typically build nests!");
-        return;
-    }
-    
-    log("is contributing to nest building.");
-}
-
-void Ant::layEggs(int count) {
-    if (role != AntRole::QUEEN) {
-        log("Only queen ants can lay eggs!");
-        return;
-    }
-    
-    if (count > eggLayingRate) {
-        log("Queen can only lay up to " + std::to_string(eggLayingRate) + " eggs per day.");
-        count = eggLayingRate;
-    }
-    
-    log("is laying " + std::to_string(count) + " eggs.");
-}
-
-void Ant::nurseYoung() {
-    if (role != AntRole::NURSE && role != AntRole::WORKER) {
-        log(getRoleName() + " ants don't typically nurse young!");
-        return;
-    }
-    
-    float efficiency = (role == AntRole::NURSE) ? nursingEfficiency : nursingEfficiency / 2;
-    log("is nursing.");
-}
-
-void Ant::mate() {
-    if (role != AntRole::QUEEN && role != AntRole::DRONE) {
-        log("Only queens and drones can mate!");
-        return;
-    }
-    
-    if (role == AntRole::QUEEN) {
-        log("Queen ant is mating. Will store sperm to fertilize eggs.");
-    } else {
-        log("Drone ant is mating. This is his life purpose!");
-    }
-}
-
-void Ant::eatFood(const std::string& foodType, float amount) {
-    log("is eating " + std::to_string(amount) + "mg of " + foodType);
-}
-
-bool Ant::isAlive() const {
-    return energy > 0;
-}
-
-float Ant::getEnergyLevel() const {
-    return energy;
-}
-
-FloatPosition Ant::getPosition() const {
-    return *position;
-}
-
-void Ant::setPosition(FloatPosition newPosition) {
-    position = std::make_unique<FloatPosition>(newPosition);
-}
-
-void Ant::displayStatus() const {
-    log("=== Ant Status ===");
-    log("Role: " + getRoleName());
-    log("Size: " + std::to_string(size) + " mm");
-    log("Color: " + std::to_string(color.r) + std::to_string(color.b) + std::to_string(color.g) + std::to_string(color.a));
-    log("Has wings: " + std::string(hasWings ? "Yes" : "No"));
-    log("Age: " + std::to_string(age) + " days");
-    log("Lifespan: " + std::to_string(lifespan) + " days");
-    const auto position = getPosition();
-    log("Position: (" + std::to_string(position.getX()) + ", " + std::to_string(position.getY()) + ")");
-    log("Energy level: " + std::to_string(energy) + "%");
-    log("Status: " + std::string(isAlive() ? "Alive" : "Dead"));
-    switch (role) {
-        case AntRole::QUEEN:
-            log("Egg laying rate: " + std::to_string(eggLayingRate) + " per day");
-            break;
-        case AntRole::SOLDIER:
-            log("Attack power: " + std::to_string(attackPower));
-            break;
-        case AntRole::WORKER:
-        case AntRole::FORAGER:
-            log("Carry capacity: " + std::to_string(maxLoad) + "mg");
-            break;
-        case AntRole::NURSE:
-            log("Nursing efficiency: " + std::to_string(nursingEfficiency));
-            break;
-        default:
-            break;
+        carriedItems.erase(itemType.value());
     }
 }
