@@ -1,0 +1,5 @@
+- After every change you complete, recompile and run the simulator so I can test it
+- Build with `cmake --build build`
+- Run with `./build/bin/ants` — it opens an SFML window, so always launch it in the background and wait for me to close it
+- C++23; prefer modern idioms (`std::variant`, `std::optional`, structured bindings, etc.)
+- No test framework is set up yet
