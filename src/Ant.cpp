@@ -3,6 +3,7 @@
 #include "Id.h"
 #include "MovementStrategy.h"
 #include "Position.h"
+#include "Tile.h"
 #include "World.h"
 #include <iostream>
 #include <cmath>
@@ -189,7 +190,22 @@ const std::unordered_map<ItemType, float>& Ant::getCarriedItems() const {
 }
 
 void Ant::update(World& world) {
-    MovementDecision decision = movementStrategy->decide(*this, world);
+    const auto currentPosition = getPosition();
+    const auto tile = world.getTile(currentPosition);
+
+    const SensoryInput input{
+        .position = currentPosition,
+        .lastDirection = lastDirection,
+        .currentLoad = getCurrentLoad(),
+        .maxLoad = maxLoad,
+        .wanderRandomness = wanderRandomness,
+        .onFood = tile->getHasFood(),
+        .onNestEntrance = tile->getIsNestEntrance(),
+        .distanceToNest = world.distanceToNest(currentPosition),
+        .nestEntrancePosition = world.getNestEntrancePosition(),
+    };
+
+    MovementDecision decision = movementStrategy->decide(input);
 
     for (const auto& action : decision.actions) {
         std::visit([this, &world](const auto& a) {

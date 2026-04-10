@@ -3,9 +3,6 @@
 #include "MovementStrategy.h"
 #include "Vector2D.h"
 #include "Position.h"
-#include "World.h"
-#include "Ant.h"
-#include "Tile.h"
 
 
 Vector2D MovementStrategy::getRandomDirection() const {
@@ -28,67 +25,52 @@ Vector2D MovementStrategy::addRandomnessToDirection(const Vector2D& direction, f
     return result.normalized();
 }
 
-MovementDecision QueenMovementStrategy::decide(const Ant& ant, World& world) {
-    const auto antPosition = ant.getPosition();
-    if (world.distanceToNest(antPosition) > 0.5) {
-        return { directionTowards(antPosition, world.getNestEntrancePosition()), {} };
+MovementDecision QueenMovementStrategy::decide(const SensoryInput& input) {
+    if (input.distanceToNest > 0.5) {
+        return { directionTowards(input.position, input.nestEntrancePosition), {} };
     }
     return { getRandomDirection() * 0.1f, {} };
 }
 
-MovementDecision WorkerMovementStrategy::decide(const Ant& ant, World& world) {
-    return { addRandomnessToDirection(ant.getLastDirection(), 0.2f), {} };
+MovementDecision WorkerMovementStrategy::decide(const SensoryInput& input) {
+    return { addRandomnessToDirection(input.lastDirection, 0.2f), {} };
 }
 
-MovementDecision NurseMovementStrategy::decide(const Ant& ant, World& world) {
-    return { addRandomnessToDirection(ant.getLastDirection(), 0.5f), {} };
+MovementDecision NurseMovementStrategy::decide(const SensoryInput& input) {
+    return { addRandomnessToDirection(input.lastDirection, 0.5f), {} };
 }
 
-MovementDecision ForagerMovementStrategy::decide(const Ant& ant, World& world) {
+MovementDecision ForagerMovementStrategy::decide(const SensoryInput& input) {
     MovementDecision decision;
-    const auto antPosition = ant.getPosition();
-    const auto tile = world.getTile(antPosition);
-    const bool isNest = tile->getIsNestEntrance();
+    float projectedLoad = input.currentLoad;
 
-    // Track current load symbolically so the return-to-nest decision reflects
-    // the pickup we're about to emit this tick.
-    float projectedLoad = ant.getCurrentLoad();
-    const float maxLoad = ant.getMaxLoad();
-
-    if (tile->getHasFood() && projectedLoad < maxLoad && !isNest) {
-        const float amountToPickUp = maxLoad - projectedLoad;
+    if (input.onFood && projectedLoad < input.maxLoad && !input.onNestEntrance) {
+        const float amountToPickUp = input.maxLoad - projectedLoad;
         decision.actions.push_back(movement_actions::PickUpItem{ItemType::FOOD, amountToPickUp});
+        decision.actions.push_back(movement_actions::StartPheromone{"Found food"});
         projectedLoad += amountToPickUp;
-        // Preserves prior behavior: pickUpItem doesn't mutate tile food state,
-        // so this branch is evaluated against the pre-pickup tile.
-        if (tile->getHasFood()) {
-            decision.actions.push_back(movement_actions::StartPheromone{"Found food"});
-        } else {
-            decision.actions.push_back(movement_actions::StopPheromone{"Found food"});
-        }
     }
 
-    const bool shouldReturnToNest = projectedLoad >= maxLoad;
-    if (shouldReturnToNest) {
-        if (isNest) {
+    if (projectedLoad >= input.maxLoad) {
+        if (input.onNestEntrance) {
             decision.actions.push_back(movement_actions::DropItem{ItemType::FOOD});
         } else {
-            decision.actions.push_back(movement_actions::SetDestination{world.getNestEntrancePosition()});
+            decision.actions.push_back(movement_actions::SetDestination{input.nestEntrancePosition});
         }
     }
 
-    decision.direction = addRandomnessToDirection(ant.getLastDirection(), ant.getWanderRandomness());
+    decision.direction = addRandomnessToDirection(input.lastDirection, input.wanderRandomness);
     return decision;
 }
 
-MovementDecision SoldierMovementStrategy::decide(const Ant& ant, World& world) {
-    return { addRandomnessToDirection(ant.getLastDirection(), 0.4f), {} };
+MovementDecision SoldierMovementStrategy::decide(const SensoryInput& input) {
+    return { addRandomnessToDirection(input.lastDirection, 0.4f), {} };
 }
 
-MovementDecision DroneMovementStrategy::decide(const Ant& ant, World& world) {
-    return { addRandomnessToDirection(ant.getLastDirection(), 0.1f), {} };
+MovementDecision DroneMovementStrategy::decide(const SensoryInput& input) {
+    return { addRandomnessToDirection(input.lastDirection, 0.1f), {} };
 }
 
-MovementDecision DefaultMovementStrategy::decide(const Ant& ant, World& world) {
+MovementDecision DefaultMovementStrategy::decide(const SensoryInput& input) {
     return { getRandomDirection(), {} };
 }

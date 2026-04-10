@@ -4,7 +4,6 @@
 #include <variant>
 #include <optional>
 #include <string>
-#include <algorithm>
 #include "Position.h"
 #include "Vector2D.h"
 #include "Ant.h"
@@ -35,6 +34,26 @@ struct MovementDecision {
     std::vector<MovementAction> actions;
 };
 
+// Snapshot of everything a strategy is allowed to observe about the ant and
+// its surroundings. Strategies read only from this DTO — they do not touch
+// Ant or World directly, so they can be unit-tested without either.
+struct SensoryInput {
+    // Ant self-state
+    FloatPosition position;
+    Vector2D lastDirection;
+    float currentLoad;
+    float maxLoad;
+    float wanderRandomness;
+
+    // Immediate tile under the ant
+    bool onFood;
+    bool onNestEntrance;
+
+    // Nest-relative
+    float distanceToNest;
+    FloatPosition nestEntrancePosition;
+};
+
 // Base strategy class
 class MovementStrategy {
 protected:
@@ -42,41 +61,41 @@ protected:
     Vector2D directionTowards(const FloatPosition& position, const FloatPosition& target) const;
     Vector2D addRandomnessToDirection(const Vector2D& direction, float randomness) const;
 public:
-    virtual MovementDecision decide(const Ant& ant, World& world) = 0;
+    virtual MovementDecision decide(const SensoryInput& input) = 0;
     virtual ~MovementStrategy() = default;
 };
 
 class QueenMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
 
 class WorkerMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
 
 class NurseMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
 
 class ForagerMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
 
 class SoldierMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
 
 class DroneMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
 
 class DefaultMovementStrategy : public MovementStrategy {
 public:
-    MovementDecision decide(const Ant& ant, World& world) override;
+    MovementDecision decide(const SensoryInput& input) override;
 };
